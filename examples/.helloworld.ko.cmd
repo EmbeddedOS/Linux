@@ -1,0 +1,1 @@
+cmd_/home/larva/Documents/LarvaLKM/examples/helloworld.ko := ld -r -m elf_x86_64 -z noexecstack --build-id=sha1  -T scripts/module.lds -o /home/larva/Documents/LarvaLKM/examples/helloworld.ko /home/larva/Documents/LarvaLKM/examples/helloworld.o /home/larva/Documents/LarvaLKM/examples/helloworld.mod.o;  true

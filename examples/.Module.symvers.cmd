@@ -1,0 +1,1 @@
+cmd_/home/larva/Documents/LarvaLKM/examples/Module.symvers := sed 's/ko$$/o/' /home/larva/Documents/LarvaLKM/examples/modules.order | scripts/mod/modpost -m -a  -o /home/larva/Documents/LarvaLKM/examples/Module.symvers -e -i Module.symvers   -T -
