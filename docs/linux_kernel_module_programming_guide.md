@@ -218,3 +218,13 @@ module_exit(helloworld_exit);
 
 MODULE_LICENSE("GPL");
 ```
+
+### 4.3. The `__init` and `__exit` Macros
+
+- The `__init` macro causes the init function be discarded and its memory freed once the init function finishes for built-in drivers, but not loadable modules. If u think about when the init function is invoked, this makes perfect sense.
+
+- There is also an `__initdata` which works similarly to `__init` but for init variables rather than functions.
+
+- The `__exit` macro causes the omission of the function when the module is built into the kernel, and like `__init`, has no effect for loadable modules. Again, if u consider when the cleanup function runs, this makes complete sense; built-in drivers do not need a cleanup function, while loadable modules do.
+
+- These macros are defined in [include/linux/init.h](https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git/tree/include/linux/init.h) ans serve to free up kernel memory. When u boot your kernel and see something like `Freeing unused kernel memory: 236k freed`, this is precisely what the kernel is freeing.

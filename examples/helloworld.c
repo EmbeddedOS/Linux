@@ -1,15 +1,19 @@
 /*
-* helloworld.c - Demonstrating the module_init() and module_exit() macros.
-* This is preferred over using init_module() and cleanup_module().
+* helloworld.c 
+* - Demonstrating the module_init() and module_exit() macros.
+* - Illustrating the __init, __initdata and __exit macros.
+* - This is preferred over using init_module() and cleanup_module().
 */
 
 #include <linux/init.h> /* Needed for the macros */
 #include <linux/module.h> /* Needed by all modules */
 #include <linux/printk.h> /* Needed for pr_info() */
 
+static int helloworld_data __initdata = 3;
+
 static int __init helloworld_init(void)
 {
-    pr_info("Hello, world.\n");
+    pr_info("Hello, world %d.\n", helloworld_data);
     return 0;
 }
 
