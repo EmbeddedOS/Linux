@@ -1,4 +1,6 @@
 obj-m += helloworld.o
+obj-m += module_param.o
+
 PWD := $(CURDIR)
 
 all:

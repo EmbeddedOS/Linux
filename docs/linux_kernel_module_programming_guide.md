@@ -240,3 +240,47 @@ module license 'unspecified' taints kernel.
 
 - U can use a few macros to indicate the license for your module. Some examples are `GPL`, `GPL v2`, `Dual MIT/GPL`. They are defined within [include/linux/module.h](https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git/tree/include/linux/module.h).
 - To reference what license you’re using a macro is available called `MODULE_LICENSE`.
+
+### 4.5. Passing Command Line Arguments to a Module
+
+- Modules can take command line arguments, but not with the `argc/argv` u might be used to.
+
+- To allow arguments to be passed to your module, declare the variable that will take the values of the command line arguments as global and then use the `module_param()` macro, (defined in [include/linux/moduleparam.h](https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git/tree/include/linux/moduleparam.h)) to set the mechanism up.
+
+- At runtime, `insmod` will fill the variables with any command line arguments that are given, like `insmod mymodule.ko myvariable=5`.
+
+- The variable declarations and macros should be placed at the beginning of the module for clarity.
+
+- The `module_param()` macro takes **3** arguments:
+  - The name of the variable.
+  - Its type.
+  - Permissions for the corresponding file in **sysfs**.
+
+- Integer types can be signed as usual or unsigned. If u would like to use arrays of integers or strings see `module_param_array()` and `module_param_string()`.
+
+```C
+int myint = 3;
+module_param(myint, int, 0);
+```
+
+- Arrays are supported too, but things are a bit different now than they were in the olden days. To keep track of the number of parameters u need to pass a pointer to a count variable as third parameter. At your option, u could also ignore the count and pass NULL instead. We show both possibilities here:
+
+```C
+int myintarray[2];
+module_param_array(myintarray, int, NULL, 0); /* not interested in count */
+
+short myshortarray[4];
+int count;
+module_param_array(myshortarray, short, &count, 0); /* put count into "count",→ variable */
+```
+
+- A good use for this is to have the module variable's default value set, like a port or IO address. If the variables contain the default value, then perform auto detection. Otherwise, keep the current value. This will be made clear later on.
+
+- Lastly, there is a macro function, `MODULE_PARM_DESC()`, that is used to document arguments that the module can take. It takes two parameters:
+  - a variable name and
+  - a free form string describing that variable.
+
+```bash
+sudo rmmod examples/module_param.ko
+sudo insmod examples/module_param.ko my_int_array={4,5,6,7} my_str="HelloLarva"
+```
