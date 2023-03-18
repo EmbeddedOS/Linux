@@ -228,3 +228,15 @@ MODULE_LICENSE("GPL");
 - The `__exit` macro causes the omission of the function when the module is built into the kernel, and like `__init`, has no effect for loadable modules. Again, if u consider when the cleanup function runs, this makes complete sense; built-in drivers do not need a cleanup function, while loadable modules do.
 
 - These macros are defined in [include/linux/init.h](https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git/tree/include/linux/init.h) ans serve to free up kernel memory. When u boot your kernel and see something like `Freeing unused kernel memory: 236k freed`, this is precisely what the kernel is freeing.
+
+### 4.4. Licensing and Module Documentation
+
+- Honestly, who loads or even cares about proprietary modules? If u do then u might have seen something like this: `sudo insmod xxxxxx.ko`
+
+```text
+loading out-of-tree module taints kernel.
+module license 'unspecified' taints kernel.
+```
+
+- U can use a few macros to indicate the license for your module. Some examples are `GPL`, `GPL v2`, `Dual MIT/GPL`. They are defined within [include/linux/module.h](https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git/tree/include/linux/module.h).
+- To reference what license you’re using a macro is available called `MODULE_LICENSE`.
