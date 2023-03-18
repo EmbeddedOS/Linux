@@ -13,6 +13,7 @@ static long int my_long = 9999;
 static char* my_str = "larva";
 static int my_int_array[4] = {0, 1, 2, 3};
 static int my_int_array_count = 0;
+
 /* module_param(foo, int, 0000)
  * The first param is the parameters name.
  * The second param is its data type.

@@ -284,3 +284,57 @@ module_param_array(myshortarray, short, &count, 0); /* put count into "count",â†
 sudo rmmod examples/module_param.ko
 sudo insmod examples/module_param.ko my_int_array={4,5,6,7} my_str="HelloLarva"
 ```
+
+### 3.6. Modules Spanning Multiple Files
+
+- Sometimes it make sense to divide a kernel module between several source files.
+
+- Here is an example of such a kernel module.
+
+```C
+/*
+ * start.c - Illustration of multi filed modules
+ */
+#include <linux/kernel.h> /* We are doing kernel work */
+#include <linux/module.h> /* Specifically, a module */
+
+int init_module(void)
+{
+    pr_info("Hello, world - this is the kernel speaking\n");
+    return 0;
+}
+
+ MODULE_LICENSE("GPL");
+```
+
+- The next file:
+
+```C
+/*
+ * stop.c - Illustration of multi filed modules
+ */
+
+#include <linux/kernel.h> /* We are doing kernel work */
+#include <linux/module.h> /* Specifically, a module */
+
+void cleanup_module(void)
+{
+    pr_info("Short is the life of a kernel module\n");
+}
+
+ MODULE_LICENSE("GPL");
+```
+
+- And finally, the makefile:
+
+```Makefile
+obj-m += startstop.o
+startstop-objs := start.o stop.o
+
+PWD := $(CURDIR)
+
+all:
+    make -C /lib/modules/$(shell uname -r)/build M=$(PWD) modules
+clean:
+    make -C /lib/modules/$(shell uname -r)/build M=$(PWD) clean
+```
