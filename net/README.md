@@ -180,3 +180,66 @@ struct nlmsghdr {
   - `NLM_F_DUMP`: US requesting Ks to send itself all the data of particular type. KS replies with multipart cascaded net-link messages to such request from US.
   - `NLM_F_MULTI`: This flag is set to tell the recipient that there is NEXT net-link message following to this one.
   - `NLM_F_ACK`: If set, US is requesting the KS to reply back with the confirmation message of the US request. KS replies with `NLMSG_NOOP` or `NLMSG_ERROR` type.
+
+### Net-link communication model
+
+- From net-link flags, u should get an idea that net-link based communication:
+  - US application is generally the requester - the master who is placing order.
+  - Kernel is generally the request Entertainer - the slave who acts on application's order/request.
+  - Most of the time, it is US which initialize the communication with the KS.
+  - In case of event-based notification, it is kernel which initiate the communication.
+
+### Net-link sequence number
+
+- When user sens a net-link request message to the Ks, it must set a unique number to this request if US sets `NLM_F_ACK` flag.
+- When KS replies back with confirmation message to US, it sets the same sequence no which was specified in the request message from US.
+- This help the US to correlate which net-link reply is for which net-link request in case US has issues multiple net-link requests to kernel and awaiting reply.
+
+### Net-link port ID
+
+- Set by the US while sending net-link message to KS.
+- It must be unique to the US, therefore good practice to use *process id*.
+- Kernel use this info to reply back to the correct application in US.
+- This value is set to zero for net-link messages originating from KS to US.
+
+## Net-link protocol number
+
+- A unique ID called net-link protocol number is assigned to each net-link capable kernel subsystem.
+- For example, see `/usr/include/linux/netlink.h`:
+
+```C
+#define NETLINK_ROUTE           0       /* Routing/device hook                          */      
+#define NETLINK_UNUSED          1       /* Unused number                                */      
+#define NETLINK_USERSOCK        2       /* Reserved for user mode socket protocols      */      
+#define NETLINK_FIREWALL        3       /* Unused number, formerly ip_queue             */      
+#define NETLINK_SOCK_DIAG       4       /* socket monitoring                            */      
+#define NETLINK_NFLOG           5       /* netfilter/iptables ULOG */
+#define NETLINK_XFRM            6       /* ipsec */
+#define NETLINK_SELINUX         7       /* SELinux event notifications */
+#define NETLINK_ISCSI           8       /* Open-iSCSI */
+#define NETLINK_AUDIT           9       /* auditing */
+#define NETLINK_FIB_LOOKUP      10      
+#define NETLINK_CONNECTOR       11
+#define NETLINK_NETFILTER       12      /* netfilter subsystem */
+#define NETLINK_IP6_FW          13
+#define NETLINK_DNRTMSG         14      /* DECnet routing messages */
+#define NETLINK_KOBJECT_UEVENT  15      /* Kernel messages to userspace */
+#define NETLINK_GENERIC         16
+/* leave room for NETLINK_DM (DM Events) */
+#define NETLINK_SCSITRANSPORT   18      /* SCSI Transports */
+#define NETLINK_ECRYPTFS        19
+#define NETLINK_RDMA            20
+#define NETLINK_CRYPTO          21      /* Crypto layer */
+#define NETLINK_SMC             22      /* SMC monitoring */
+
+#define NETLINK_INET_DIAG       NETLINK_SOCK_DIAG
+
+#define MAX_LINKS 32
+```
+
+- For example, TCP/IP stack kernel subsystem is assigned a net-link protocol number `0`: net-link routing.
+  - Firewall infrastructure sitting in the linux kernel is assigned the value `3`.
+
+- We will going to deploy a Linux command module as a new Linux Kernel subsystem and therefore we will going to use the unused value, which is `31`.
+
+--> We need to choose a **Unused Unreserved** net-link protocol number: `31`
