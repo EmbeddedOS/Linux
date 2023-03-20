@@ -7,18 +7,18 @@
 #include <net/sock.h>           /* Needed for sock structure. */
 #include <linux/string.h>
 
-#include "call.h"
+#include "calls.h"
 
 #define OK 0
 #define NETLINK_LAVA_PROTOCOL 31 /* A Unused Unreserved net-link protocol number.*/
 
-static struct sock* _socket = NULL;
+struct sock* _socket = NULL;
 
 struct netlink_kernel_cfg _cfg = {
     .input = netlink_recv_msg_f
-}
+};
 
-static int __init netlink_init()
+static int __init netlink_init(void)
 {
     int res = OK;
 
@@ -30,7 +30,7 @@ static int __init netlink_init()
     _socket = netlink_kernel_create(&init_net, NETLINK_LAVA_PROTOCOL, &_cfg);
     if (_socket == NULL)
     {
-        pr_error("Net-link socket for protocol: %u failed.", NETLINK_LAVA_PROTOCOL);
+        pr_err("Net-link socket for protocol: %u failed.", NETLINK_LAVA_PROTOCOL);
         res = -ENOMEM;
         goto out;
     }
@@ -41,12 +41,13 @@ out:
     return res;
 }
 
-static void __exit netlink_exit()
+static void __exit netlink_exit(void)
 {
     /* Release the socket.
      *
      */
     netlink_kernel_release(_socket);
+    _socket = NULL;
 
     pr_info("Net link driver is unloaded.\n");
 }

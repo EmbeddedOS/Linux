@@ -243,3 +243,20 @@ struct nlmsghdr {
 - We will going to deploy a Linux command module as a new Linux Kernel subsystem and therefore we will going to use the unused value, which is `31`.
 
 --> We need to choose a **Unused Unreserved** net-link protocol number: `31`
+
+## Kernel socket buffer
+
+- When kernel space receives data from US via net-link, data is received in a data structure called **socket buffer**.
+
+- Kernel uses this data structure extensively for multiple purposes:
+  - that is for transporting messages from one kernel subsystem to another.
+  - For receiving networking packet from outside.
+  - Packet movement upwards and downwards in the layers of TCP/IP stack (Linux implementation of  OSI model).
+  - Etc.
+
+- This is large data structure;
+
+- US data is received in `skb->data;`
+- Length of data: `skb->len;`
+
+-> Socket buffers have been especially designed for handling network packets, moving up and down through the layers of the TCP/IP stack running in the Linux kernel.
