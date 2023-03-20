@@ -338,3 +338,72 @@ all:
 clean:
     make -C /lib/modules/$(shell uname -r)/build M=$(PWD) clean
 ```
+
+## 5. Preliminaries
+
+### 5.1. How module begin and end
+
+- A program usually begins with a `main()` function, executes a bunch of instructions and terminates upon completion of these instructions. Kernel modules work a bit different. A module always begin with either the `init_module` or the function u specify with `module_init` call. This is the entry function for modules; it tells the kernel what functionality the module provides and sets up the kernel to run the module's functions when they are needed. Once it does this, entry function returns and the modules does nothing until the kernel wants to something with the code that the module provides.
+
+- All modules end by calling either `cleanup_module` or the function u specify with the `module_exit` call. This is the exit function for modules; it undoes whatever entry function did. It un-registers the functionality that the entry function registered.
+
+- Every module must have an entry function and an exit function. Since there is more than one way to specify entry and exit functions, I will try my best to use the terms `entry function` and `exit function`, but if I slip and simply refer to them as `init_module` and `cleanup_module`, I think u will know what I mean.
+
+### 5.2. Functions available to modules
+
+- Programmers use functions they do not define all the time. A prime example of this is `printf()`. U use these library functions which are provided by the standard C library. The definitions for these functions do not actually enter your program until linking stage, which insures that the code (for printf() for example) is available, and fixes the call instruction to point to the code.
+
+- Kernel modules are different here, too. In the hello world example, u might have noticed that we used a function, `pr_info()` but did not include a standard I/O library. This is because modules are object files whose symbols get resolved upon running `insmod` or `modprobe`. The definition for the symbols comes from the kernel itself; the only external functions u can uses are the ones provided by the kernel . If U are curious about what symbols have been exported by your kernel, take a look at `/proc/kallsyms`.
+
+- One point to keep in mind is the difference between library functions and system calls. Library functions are higher level, run completely in user space and provide a more convenient interface for the programmer to the functions that do the real work -- system calls. **System calls** run in kernel mode on the user's behalf and are provided by the kernel itself. The library function `printf()` may look like a very general printing function, but all it really does is format the data into strings and write the string data using the low level system call `write()`, which then sends the data to standard output.
+
+- Would u like to see what system calls are made by `printf()`? It is easy! Compile the following program:
+
+```C
+#include <stdio.h>
+
+int main()
+{
+  printf("hello");
+  return 0;
+}
+```
+
+- With `gcc -Wall -o hello hello.c`. Run the executable with `strace ./hello`. Are u impressed? Every line u see corresponds to a system call.
+  - [strace](https://strace.io/) is a handy program that gives u details about what system calls a program is making, including which call is made, what its arguments are and what it returns.
+  - It is an invaluable tool for figuring out things like what files a program is trying to access. Towards the end, u will see a line which looks like `write(1, "hello", 5hello)`. There it is.
+  - The face behind the `printf()` mask. U may not be familiar with `write`, since most people use library functions for the file I/O (like `fopen()`, `fputs()`, `fclose()`).
+
+  - U can even write modules to **replace** the kernel's system calls, which we will do shortly. Crackers often make use of this sort of thing for back-doors or trojans, but u can write your own modules to do more benign things, like have the kernel write Tee hee; that tickles! every time someone tries to delete a file on your system.
+
+### 5.3. User space and kernel space
+
+- A kernel is all about access to resources, whether the resource in question happens to be a video card, a hard drive or even memory.
+
+- Programs often compete for the same resource. As I just saved this document, `updatedb` started updating the locate database. My vim session and `updatedb` are both using the hard drive concurrently. The kernel needs to keep things orderly, and not give users access to resources whenever they feel like it. To this end, a CPU can run in different modes. Each mode gives a different level of freedom to do what u want on the system.
+
+- The Intel 80386 architecture had 4 of these modes, which were called **rings**. Unix uses only two ring:
+  - The **highest ring**: ring 0, also known as `supervisor mode` where everything is allowed to happen.
+  - The **lowest ring**: which is called `user mode`.
+
+- Recall the discussion about library functions vs system calls. Typically, u use a library function in user mode. The library function calls one or more system calls, and these system calls execute on the library function's behalf, but do so in supervisor mode since they are part of the kernel itself. Once the system call completes its task, it returns and execution gets transferred back to user mode.
+
+### 5.4. Name space
+
+- When u write a small C program, u use variables which are convenient and make sense to the reader. If, on the other hand, u are writing routines which will be part of a bigger problem, any global variables u have are part of a community of other people's global variables, some of the variable manes can clash. When a program has lots of global variables which aren't meaningful enough to be distinguished, u get namespace pollution. In large projects, effort must be made to remember reserved names, and to find ways to develop a scheme for naming unique variable names and symbols.
+
+- When writing kernel code, even the smallest module will be linked against the entire kernel, so this is definitely an issue. The best way to deal with this is to declare everything as static and to use a well-defined prefix for your symbols. By convention, *all kernel prefixes are lowercase*. If u do not want to declare everything as static, another option is to declare a symbol table and register it with the kernel.
+
+- The file `/proc/kallsyms` holds all the symbols that the kernel knows about and which are therefore accessible to your modules since they share the kernel's code space.
+
+### 5.5. Code space
+
+- Memory management is a very complicated subject.
+- If u have not thought about what a segfault really means, u may be surprised to hear that `pointers do not actually point to memory locations`. Not real ones, anyway.
+  - When a process is created, the kernel sets aside a portion of real physical memory and hands it to process things to use for its executing code, variables, stack, heap, and other things which a computer scientist would know about.
+
+  - This memory begins with `0x00000000` and externs up to whatever it needs to be.
+
+  - Since the memory space for any two processes **do not overlaps**, every process that can access a memory address, say `0xbffff978`, would be accessing a different location in real physical memory! The processes would be accessing an index named `0xbffff978` which points to some kind of offset into the region of memory set aside for that particular process. For the most part, a process like our `Hello, world` program can't access the space of another process, although there are ways which we will talk about later.
+
+  - The kernel has its own space of memory as well. Since a module is code which can be dynamically inserted and removed in the kernel (as opposed to a semi-autonomous object), it shares the kernel's code-space rather having its own. Therefore, `if your module segfaults, the kernel segfaults`. And if u start writing over data because of an off-by-one error, then you are **trampling** on kernel data (or code). This is even worse than it sounds, so try your best to careful.
