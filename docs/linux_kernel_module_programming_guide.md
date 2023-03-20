@@ -407,3 +407,204 @@ int main()
   - Since the memory space for any two processes **do not overlaps**, every process that can access a memory address, say `0xbffff978`, would be accessing a different location in real physical memory! The processes would be accessing an index named `0xbffff978` which points to some kind of offset into the region of memory set aside for that particular process. For the most part, a process like our `Hello, world` program can't access the space of another process, although there are ways which we will talk about later.
 
   - The kernel has its own space of memory as well. Since a module is code which can be dynamically inserted and removed in the kernel (as opposed to a semi-autonomous object), it shares the kernel's code-space rather having its own. Therefore, `if your module segfaults, the kernel segfaults`. And if u start writing over data because of an off-by-one error, then you are **trampling** on kernel data (or code). This is even worse than it sounds, so try your best to careful.
+
+### 5.6. Device Drivers
+
+- One class of module is the device driver, which provides functionality for hardware like a serial port.
+  - On Unix, each piece of HW is represented by a file located in `/dev/` named a device file which provides the communicate with the HW.
+  - The device driver provides the communication on behalf of a user program.
+    - So the `es1370.ko` sound card device driver might connect the `/dev/sound` device file to the `Ensoniq IS1370` sound card.
+    - A user program like `mp3blaster` can use `/dev/sound` without ever knowing what kind of sound card is installed.
+  - For example: `ls -l /dev/tty[0-15]`
+
+  ```text
+  crw--w---- 1 root tty 4, 0 Thg 3  20 07:56 /dev/tty0
+  crw--w---- 1 gdm  tty 4, 1 Thg 3  20 07:56 /dev/tty1
+  crw--w---- 1 root tty 4, 5 Thg 3  20 07:56 /dev/tty5
+  ```
+
+  - Notice the column of numbers separated by a comma. The first number is called the device’s `major number`. The second number is the `minor number`.
+    - The major number tells u which driver is used to access the HW.
+    - Each driver is assigned a unique major number; all device files with the same major number are controller by the same driver.
+    - On the above example, all the major numbers are `4`, because they are all controlled by the same driver.
+
+  - The `minor` number is used by the driver to distinguish between the various it controls. Returning to the example above, although all three devices are handled by the same driver they have unique minor numbers because the driver sees them as being different pieces of HW.
+
+- Device are divided into two types:
+  - character devices, and
+  - block devices.
+
+- The difference is that block devices have a buffer for requests, so they can choose the best order in which to respond to the requests.
+  - This is **important** in the case of storage devices, where it is faster to read or write sectors which are close to each other, rather than those which are further apart.
+  - Another difference is that block devices can only accept input and return output in **blocks** (whose size can vary according to the device), whereas character devices are allowed to use as many or as they like.
+
+- Most devices in the world are character, because they don’t need this type of buffering, and they don’t operate with a fixed block size.
+
+- You can tell whether a device file is for a block device or a character device by looking at the first character in the output of `ls -l`. If it is `b` then it is a block device, and if it is `c` then it is a character device.
+
+```text
+# Block device.
+brw-rw----  1 root  disk      8,   0 Thg 3  20 07:56 sda
+brw-rw----  1 root  disk      8,   1 Thg 3  20 07:56 sda1
+
+# Character device.
+crw--w---- 1 root tty 4, 0 Thg 3  20 07:56 /dev/tty0
+crw--w---- 1 gdm  tty 4, 1 Thg 3  20 07:56 /dev/tty1
+```
+
+- When the system was installed, all of those device files were created by the `mknod` command. To create a new char device named `coffee` with major/minor
+number `12` and `2`, simply do `mknod /dev/coffee c 12 2`. You do not have
+to put your device files into `/dev`, but it is done by convention.
+
+- When a device file is accessed, the kernel uses the `major number` of the file to determine which driver should be used to handle the access. This means that kernel doesn't really should be used to handle the access.
+  - The driver itself is the only thing that cares about the `minor number`. It uses the minor number to distinguish between different pieces of hardware.
+
+## 6. Character Device Drivers
+
+### 6.1. The `file_operations` Structure
+
+- The `file_operations` structure is defined in [include/linux/fs.h](https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git/tree/include/linux/fs.h), and holds pointers to functions defined by the driver that perform various operations on the device.
+
+- *Each field of the structure corresponds to the address of some function defined by the driver to handle a request operation.*
+
+- For example, every character driver needs to define a function that reads from the device. The `file_operations` structure holds the address of the module's function that performs that operation.
+
+```C
+struct file_operations {
+  struct module *owner;
+  loff_t (*llseek) (struct file *, loff_t, int);
+  ssize_t (*read) (struct file *, char __user *, size_t, loff_t *);
+  ssize_t (*write) (struct file *, const char __user *, size_t, loff_t *);
+  ssize_t (*read_iter) (struct kiocb *, struct iov_iter *);
+  ssize_t (*write_iter) (struct kiocb *, struct iov_iter *);
+  int (*iopoll)(struct kiocb *kiocb, bool spin);
+  int (*iterate) (struct file *, struct dir_context *);
+  int (*iterate_shared) (struct file *, struct dir_context *);
+  __poll_t (*poll) (struct file *, struct poll_table_struct *);
+  long (*unlocked_ioctl) (struct file *, unsigned int, unsigned long);
+  long (*compat_ioctl) (struct file *, unsigned int, unsigned long);
+  int (*mmap) (struct file *, struct vm_area_struct *);
+  unsigned long mmap_supported_flags;
+  int (*open) (struct inode *, struct file *);
+  int (*flush) (struct file *, fl_owner_t id);
+  int (*release) (struct inode *, struct file *);
+  int (*fsync) (struct file *, loff_t, loff_t, int datasync);
+  int (*fasync) (int, struct file *, int);
+  int (*lock) (struct file *, int, struct file_lock *);
+  ssize_t (*sendpage) (struct file *, struct page *, int, size_t, loff_t *, int);
+  unsigned long (*get_unmapped_area)(struct file *, unsigned long, unsigned long, unsigned long, unsigned long);
+  int (*check_flags)(int);
+  int (*flock) (struct file *, int, struct file_lock *);
+  ssize_t (*splice_write)(struct pipe_inode_info *, struct file *, loff_t *, size_t, unsigned int);
+  ssize_t (*splice_read)(struct file *, loff_t *, struct pipe_inode_info *, size_t, unsigned int);
+  int (*setlease)(struct file *, long, struct file_lock **, void **);
+  long (*fallocate)(struct file *file, int mode, loff_t offset, loff_t len);
+  void (*show_fdinfo)(struct seq_file *m, struct file *f);
+  ssize_t (*copy_file_range)(struct file *, loff_t, struct file *, loff_t, size_t, unsigned int);
+  loff_t (*remap_file_range)(struct file *file_in, loff_t pos_in, struct file *file_out, loff_t pos_out, loff_t len, unsigned int remap_flags);
+  int (*fadvise)(struct file *, loff_t, loff_t, int);
+} __randomize_layout;
+```
+
+- Some operations are not implemented by a driver. For example, a driver that handles a video card will not need to read from a directory structure.
+  - The corresponding entries in the `file_operations` structure should be set to `NULL`.
+
+- Assigning handler to the structure:
+
+```C
+struct file_operations fops = {
+  .read = device_read,
+  .write = device_write,
+  .open = device_open,
+  .release = device_release
+};
+```
+
+### 6.2. The file structure
+
+- Each device is represented in the kernel by a file structure, which is defined in [include/linux/fs](https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git/tree/include/linux/fs.h). Be aware that a file is a kernel level structure and never appears in a user space program.
+  - It is not the same thing as a `FILE`, which is defined by glibc and would never appear in a kernel space function.
+  - Also, its name is a bit misleading, it represents an abstract open **file**, not a file on a disk, which is represented by a structure named `inode`.
+
+- An instance of structure file is commonly named `filp`. U will also see it referred to as a struct file object. Resist the temptation.
+
+### 6.3. Registering A Device
+
+- Char devices are accessed through device files, usually located in `/dev`. This is by convention. When writing a driver, it is OK, to put the device file in your current directory. Just make sure you place it in `/dev` for a production driver.
+  - The major number tells u which driver handles which device file.
+  - The minor number is used only by the driver itself to differentiate which device it is operation on, just in case the driver handles more than one device.
+
+- Adding a driver to your system means registering it with the kernel. This is synonymous with assigning it a major number during the module's initialization. U do this by using the `register_chrdev` function, defined by [include/linux/fs](https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git/tree/include/linux/fs.h).
+
+```C
+int register_chrdev(unsigned int major, const char *name, struct file_operations *fops);
+```
+
+- Where `unsigned int major` is the major number u want to request,
+  - `const char *name` is the name of the device as it will appear in `/proc/devices` and
+  - `struct file_operations *fops` is a pointer to the `file_operations` table for your driver.
+
+- A negative return value means the registration failed.
+- Note: we didn't pass the minor number to `register_chrdev` because the kernel doesn't care about the minor number; only our driver uses it.
+
+- Now the question is how do u get a major number without hijacking one that is already in use?
+  - The easiest way would be to look through [Documentation/admin-guide/devices.txt](https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git/tree/Documentation/admin-guide/devices.txt) and pick an unused one. That is a bad way of doing things because u will NEVER be sure if the number u picked will be assigned later.
+  - The answer is that u can ask the kernel to assign u a *dynamic major number*.
+    - if u pass a major of `0` to `register_chrdev`, the return value will be the dynamically allocated major number.
+    - The downside:
+      - U can not make a device file in advance, since u do not know what the major number will be.
+    - There are a couple of way to do this.
+      - First, the driver itself can print the newly assigned number and we can make the device file by hand.
+      - Second, the newly registered device will have an entry in `/proc/devices`, and we can either make the device file by hand or write a shell script to rad the file in and make the device file.
+      - The third method is that we can have our driver make the device file using the `device_create` function after a successful registration and `device_destroy` during the call to `cleanup_module()`.
+
+  - However, `register_chrdev()` would occupy a range of minor numbers associated with the given major. The recommended way to reduce waste for char device registration is using `cdev` interface.
+
+- The newer interface completes the char device registration in two distinct steps.
+  - First, we should register a range of device numbers, which can completed with `register_chrdev_region` or `alloc_chrdev_region`.
+
+    ```C
+    int register_chrdev_region(dev_t from, unsigned count, const char *name);
+    int alloc_chrdev_region(dev_t *dev, unsigned baseminor, unsigned count, const char *name);
+    ```
+
+    - The choice between two different functions depends on whether u know the major numbers for your device. Using `register_chrdev_region` if u know the device major number and `alloc_chrdev_region` if u would like to allocate a dynamicly-allocated major number.
+
+  - Second, we should initlialize the data structure `struct cdev` for our char device and associate it with the device numbers. To initilialize the `struct cdev`, we can achieve by the simalar sequence of the following codes.
+
+    ```C
+    struct cdev *my_dev = cdev_alloc();
+    my_cdev->ops = &my_fops;
+    ```
+
+    - However the common usage pattern will embed the struct cdev within a device-specific structure of your own. In this case, we will need `cdev_init` for the initlization.
+
+      ```C
+      void cdev_init(struct cdev *cdev, const struct file_operations *fops)
+      ```
+
+- Once we finish the initialization, we can add the char device to the system by using the `cdve_add`.
+
+```C
+int cdev_add(struct cdev *p, dev_t dev, unsigned count);
+```
+
+### 6.4. Unregistering A device
+
+- We can not know allow the kernel module to `rmmod`ed whenever root feels like it.
+
+- If the device file is opened by a process and then we remove the kernel module, using the file would cause a call to the memory location where the appropriate function (read/write) used to be.
+  - If we are lucky, no other code was loaded there and we will get an ugly error message.
+  - If we are unlucky, another kernel module was loaded into the same location, which means a jump into the middle of another function within the kernel. The result of this would be impossible to predict, but they can not be very positive.
+
+- Normally, when u do not want to allow something, u return an error code (a negative number) from function which is supposed to do it. With `cleanup_module` that is *impossible* because it is **void** function.
+
+- However, there is a **counter** which keeps track of how many processes are using your module.
+  - You can see what its value is by looking at the 3rd field with the command `cat /proc/modules` or `sudo lsmod`. If this number isn't zero, `rmmod` will **fail**.
+  - Note that u do not have to check the counter within `cleanup_module` because the check will be performed for u by the system call `sys_delete_module`, defined in [include/linux/syscalls.h](https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git/tree/include/linux/syscalls.h).
+  - U **should not** use this counter directly, but there are functions defined in [include/linux/module.h](https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git/tree/include/linux/module.h) which let u increase, decrease and display this counter:
+    - `try_module_get(THIS_MODULE)`: Increment the reference count of current module.
+    - `module_put(THIS_MODULE)`: Decrement the reference count of current module.
+    - `module_refcount(THIS_MODULE)`: Return the value of reference count of current module.
+
+- It is importanc to keep the counter accurate; if u ever do lose track of the correct usage count, u will **never be able to** unload the module; it's now reboot time.

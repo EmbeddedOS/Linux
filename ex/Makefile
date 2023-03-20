@@ -1,5 +1,6 @@
 obj-m += helloworld.o
 obj-m += module_param.o
+obj-m += char_device.o
 
 PWD := $(CURDIR)
 

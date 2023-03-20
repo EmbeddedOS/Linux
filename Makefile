@@ -1,6 +1,6 @@
 
 all:
-	make -C ./examples/
+	make -C ./ex/
 
 clean:
-	make clean -C ./examples/
+	make clean -C ./ex/
