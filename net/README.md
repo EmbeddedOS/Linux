@@ -260,3 +260,12 @@ struct nlmsghdr {
 - Length of data: `skb->len;`
 
 -> Socket buffers have been especially designed for handling network packets, moving up and down through the layers of the TCP/IP stack running in the Linux kernel.
+
+## User thread model
+
+- User program will do the following:
+  - Create a US Net-link socket.
+  - Start a separate net-link message receiver thread: wait for kernel message, receive and process.
+  - ASK the user for input to send GREET message to the kernel.
+  - send GREET net-link message to kernel LKN using no.31.
+  - Kernel reply message via receiver thread.
