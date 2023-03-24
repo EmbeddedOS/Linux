@@ -608,3 +608,47 @@ int cdev_add(struct cdev *p, dev_t dev, unsigned count);
     - `module_refcount(THIS_MODULE)`: Return the value of reference count of current module.
 
 - It is importanc to keep the counter accurate; if u ever do lose track of the correct usage count, u will **never be able to** unload the module; it's now reboot time.
+
+### 6.5. `char_device.c`
+
+- In multiple-threaded environment, without any protection, concurrent access to the same memory may lead to the *race condition*, and will not preserve the performance.
+  - In the kernel module, this problem may happen due to multiple instances accessing the shared resources. Therefore, a solution is to enforce the exclusive access. We use atomic **Compare-And-Swap (CAS)** to maintain the states, `DEV_NOT_USED` and `DEV_IS_OPEN`, to determine whether the file is currently opended by someone or not.
+  - `CAS` compares the contents of a memory location with the expected value and, only if they are the same, modifies the contents of that memory location to the desired value.
+
+## 7.  The `/proc` File System
+
+- In Linux, there is an additional mechanism for the kernel and kernel modules to send information to processes -- the `/proc` file system. Originally designed to allow easy access to information about processes (hence the name), it is now used by every bit of the kernel which has something interesting to report, such as `/proc/modules` which provides the list of modules and `/proc/meminfo` which gathers memory usage statistics.
+
+- The method to use proc file system is very similar to the one used with device drivers -- **a structure** is created with all the information needed for the `/proc` file, including pointers to *any handler functions*.
+
+- Then `init_module` registers the structure with the kernel and `cleanup_module` unregisters it.
+
+- Normal file systems are located on a disk, rather than just in memory (which is where /proc is), and in that case the index-node (**inode** for short) number is a pointer to a disk location where the file's inode is located.
+  - The inode contains information about the file, for example the file's permissions, together with a pointer to the disk location or locations where the file's data can be found.
+
+### 7.1. The `proc_ops` structure
+
+- The `proc_ops` structure is defined in [include/linux/proc_fs.h](https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git/tree/include/linux/proc_fs.h) in Linux v5.6+. In order kernels, it used `file_operations` for custom hook in `/proc` fs.
+  - but it contains some members that are unnecessary in VFS, and every time `VFS` expands `file_operations` set, `/proc` code comes bloated. On the other hand, not only the space, but also some operations were saved by this structure to improve its performance.
+
+```C
+struct proc_ops {
+  unsigned int proc_flags;
+    int (*proc_open)(struct inode *, struct file *);
+    ssize_t (*proc_read)(struct file *, char __user *, size_t, loff_t *);
+    ssize_t (*proc_read_iter)(struct kiocb *, struct iov_iter *);
+    ssize_t (*proc_write)(struct file *, const char __user *, size_t, loff_t *);
+  /* mandatory unless nonseekable_open() or equivalent is used */
+  loff_t (*proc_lseek)(struct file *, loff_t, int);
+  int (*proc_release)(struct inode *, struct file *);
+  __poll_t (*proc_poll)(struct file *, struct poll_table_struct *);
+  long (*proc_ioctl)(struct file *, unsigned int, unsigned long);
+#ifdef CONFIG_COMPAT
+  long (*proc_compat_ioctl)(struct file *, unsigned int, unsigned long);
+#endif
+  int (*proc_mmap)(struct file *, struct vm_area_struct *);
+  unsigned long (*proc_get_unmapped_area)(struct file *, unsigned long, unsigned long, unsigned long, unsigned long);
+} __randomize_layout;
+```
+
+### 7.2. Read and Write a `/proc` file

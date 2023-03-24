@@ -48,6 +48,7 @@ static struct file_operations _fops = {
 static int __init _module_init(void)
 {
     int res = OK;
+    pr_info("%s(): invoked.\n", __FUNCTION__);
 
     /* 1. Registering the device with the kernel. */
 
@@ -88,6 +89,7 @@ out:
 
 static void __exit _module_exit(void)
 {
+    pr_info("%s(): invoked.\n", __FUNCTION__);
     device_destroy(_cls, MKDEV(_major, 0));
     class_destroy(_cls);
     unregister_chrdev(_major, DEVICE_NAME);
@@ -97,7 +99,7 @@ static void __exit _module_exit(void)
 
 static int _open(struct inode * inode, struct file *f)
 {
-    pr_info("%s(): invoked.", __FUNCTION__);
+    pr_info("%s(): invoked.\n", __FUNCTION__);
 
     /* Atomic compare and exchange.
      * @uaddr: The address of the atomic_t to be modified.
@@ -121,7 +123,7 @@ static int _open(struct inode * inode, struct file *f)
 
 static int _release(struct inode * inode, struct file *f)
 {
-    pr_info("%s(): invoked.", __FUNCTION__);
+    pr_info("%s(): invoked.\n", __FUNCTION__);
 
     /* Atomic set.
      * @addr: Address of the variable to set.
@@ -141,7 +143,7 @@ static ssize_t _read(struct file *f, char __user *p, size_t size, loff_t *offset
     int bytes_read = 0;
     const char* msg = NULL;
 
-    pr_info("%s(): invoked.", __FUNCTION__);
+    pr_info("%s(): invoked.\n", __FUNCTION__);
 
     sprintf(_msg, "Device is open %d times.\n", _open_counter);
     msg = _msg;
@@ -183,7 +185,7 @@ static ssize_t _read(struct file *f, char __user *p, size_t size, loff_t *offset
 
 static ssize_t _write(struct file *f, const char __user *p, size_t size, loff_t *offset)
 {
-    pr_info("%s(): invoked.", __FUNCTION__);
+    pr_info("%s(): invoked.\n", __FUNCTION__);
     return OK;
 }
 
