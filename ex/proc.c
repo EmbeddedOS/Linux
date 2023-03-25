@@ -113,7 +113,21 @@ static ssize_t _read(struct file *f, char __user *p, size_t size, loff_t *offset
 static ssize_t _write(struct file *f, const char __user *p, size_t size, loff_t *offset)
 {
     pr_info("%s(): invoked.\n", __FUNCTION__);
-    return OK;
+
+    char msg[size+1];
+    
+    if (copy_from_user(msg, p, size))
+    {
+        return -EFAULT;
+    }
+
+    msg[size] = '\0';
+
+    pr_info("User written: %s.\n", msg);
+
+    *offset += size;
+
+    return size;
 }
 
 module_init(_module_init);

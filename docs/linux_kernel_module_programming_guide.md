@@ -652,3 +652,24 @@ struct proc_ops {
 ```
 
 ### 7.2. Read and Write a `/proc` file
+
+- The reason for copy_from_user or get_user is that Linux memory (On Intel architecture, it may be different under some other processors) is segmented. This means that a pointer, by itself, does not reference a unique location in memory, ony a location in memory segment it is to be able to use it. *There is one memory segment for the kernel and one for each of the processes.*
+
+- The only memory segment accessible to a process is its own, so when writing regular programs to run as processes, there is no need to worry segments. When u write a kernel module, normally u want to access the kernel memory segment, which is handled automatically by the system. However, when the content of a memory buffer needs to be passed between the currently running process and the kernel, the kernel function receives a pointer to the memory buffer which is in the process segment.
+  - The `put_user` and `get_user` macros allow u to access that memory. These functions handle only one character, u can handle several characters with `copy_to_user` and `copy_from_user`.
+
+### 7.3. Manage `/proc` file with standard filesystem
+
+- A `/proc` file can read and write with `/proc` interface. But it is also possible to manage `/proc` with `inodes`. The main concern is to use advanced functions, like permissions.
+
+- In Linux, there is a standard mechaism for file system registration. Since every file has to have its own functions to handle inode and file operations, there is a special structure to hold pointers to all those functions, **struct inode_operations**, which include a pointer to struct proc_ops.
+
+- The difference between file and inode operations is that file operations deal with the file itself whereas inode operations deal with ways of referencing the file, such as creating links to it.
+
+- In `/proc`, whenever we register a new file, we are allowed to specify which `struct inode_operations` which includes a pointer to a `struct proc_ops` which includes pointers to our `_read()` and `_write()` function.
+
+- Another interesting point is the `module_permission` function. This function is called whenever a process tries to do something with `/proc` file, and it can decide whether to allow access or not.
+  - Right now it is based on the operation and the `uid` of the current user, but it could be based on anything we like, such as what other processes are doing with the same file, the time of day, or the last inupt we received.
+
+- It is importance to note that the *standard roles of read and write are reversed* in the kernel.
+  - Read functions are used for output, whereas write functions are used for input. The reason for that is that read and write refer to the user’s point of view — if a process reads something from the kernel, then the kernel needs to output it, and if a process writes something to the kernel, then the kernel receives it as input.
