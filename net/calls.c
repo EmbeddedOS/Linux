@@ -38,12 +38,13 @@ void netlink_recv_msg_f(struct sk_buff *skb)
     data_length = skb->len;
     data = (char*)nlmsg_data(netlink_headers); /* Library function that return head of message payload. */
 
-    pr_info("Msg: %s from %d\n.", data, netlink_headers->nlmsg_pid);
+    pr_info("Msg: %s from %d.\n", data, netlink_headers->nlmsg_pid);
 
     /* 3. Send reply to the user. */
     char reply[REPLY_MAXSIZE];
     memset(reply, 0, sizeof(reply));
 
+    /* Currently, we just capture the NLM_F_ACK messages. */
     if (netlink_headers->nlmsg_flags & NLM_F_ACK)
     {
         snprintf(reply, sizeof(reply), "The msg from %d is handled", netlink_headers->nlmsg_pid);
@@ -97,7 +98,7 @@ void netlink_recv_msg_f(struct sk_buff *skb)
         kfree_skb(socket_buffer_out);
     }
 
-
+    pr_info("Send reply message to the user successfully.\n");
 }
 
 /* Helper function that print all message headers.
