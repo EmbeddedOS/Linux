@@ -8,6 +8,7 @@
 #include <linux/proc_fs.h>
 #include <linux/version.h>
 #include <linux/uaccess.h>
+#include <linux/seq_file.h> /* For seq_file. */
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 6, 0)
 #define HAVE_PROC_OPS
@@ -17,26 +18,35 @@
 #define OK 0
 
 static int _open(struct inode * inode, struct file *f);
-static int _release(struct inode * inode, struct file *f);
-static ssize_t _read(struct file *f, char __user *p, size_t size, loff_t *offset);
-static ssize_t _write(struct file *f, const char __user *p, size_t size, loff_t *offset);
-
+static void *_seq_start(struct seq_file *s, loff_t *pos);
+static void *_seq_next(struct seq_file *s, void* v, loff_t *pos);
+static void _seq_stop(struct seq_file *s, void* v);
+static int _seq_show(struct seq_file *s, void *v);
 
 static struct proc_dir_entry *_proc_file;
 
+static int counter = 0;
+
+static struct seq_operations _seq_ops = {
+    .start = _seq_start,
+    .next = _seq_next,
+    .stop = _seq_stop,
+    .show = _seq_show
+};
+
 #ifdef HAVE_PROC_OPS
 static struct proc_ops _fops = {
-    .proc_read = _read,
-    .proc_write = _write,
+    .proc_read = seq_read,
+    .proc_lseek = seq_lseek,
     .proc_open = _open,
-    .proc_release = _release,
+    .proc_release = seq_release
 };
 #else
 static struct file_operations _fops = {
-    .read = _read,
-    .write = _write,
+    .read = seq_read,
+    .lseek = seq_lseek,
     .open = _open,
-    .release = _release,
+    .release = seq_release,
 };
 #endif
 
@@ -62,12 +72,6 @@ static int __init _module_init(void)
         goto out;
     }
 
-    /* Set the `/proc` file size.*/
-    proc_set_size(_proc_file, 100);
-
-    /* Set the `/proc` file owner as root.*/
-    proc_set_user(_proc_file, GLOBAL_ROOT_UID, GLOBAL_ROOT_GID);
-
     pr_info("/proc/%s created.\n", PROCFS_NAME);
 
 out:
@@ -84,61 +88,65 @@ static int _open(struct inode * inode, struct file *f)
 {
     pr_info("%s(): invoked.\n", __FUNCTION__);
 
-    try_module_get(THIS_MODULE);
-
-    return OK;
+    return seq_open(f, &_seq_ops);
 }
 
-static int _release(struct inode * inode, struct file *f)
+/* This callback is called at the beginning of a sequence.
+ * - When:
+ * + The `/proc` file is read (first time).
+ * + After the function stop (end of sequence).
+ */
+static void *_seq_start(struct seq_file *s, loff_t *pos)
 {
     pr_info("%s(): invoked.\n", __FUNCTION__);
-
-    module_put(THIS_MODULE);
-
-    return OK;
-}
-
-static ssize_t _read(struct file *f, char __user *p, size_t size, loff_t *offset)
-{
-    size_t res = 0;
-
-
-    pr_info("%s(): invoked.\n", __FUNCTION__);
-
-    char msg[20] = "I am Larva!\n";
-    int msg_len = sizeof(msg);
-
-    if (*offset >= msg_len || copy_to_user(p, msg, msg_len))
-    {
-        *offset = 0;
-    } else
-    {
-        *offset += msg_len;
-        res = msg_len;
-        pr_info("read: %s", f->f_path.dentry->d_name.name);
-    }
-
-    return res;
-}
-
-static ssize_t _write(struct file *f, const char __user *p, size_t size, loff_t *offset)
-{
-    pr_info("%s(): invoked.\n", __FUNCTION__);
-
-    char msg[size+1];
     
-    if (copy_from_user(msg, p, size))
-    {
-        return -EFAULT;
+    if (*pos == 0)
+    { // Begin a new sequence.
+        return &counter;
     }
 
-    msg[size] = '\0';
+    // It is the end of the sequence, return NULL to stop reading.
+    *pos = 0;
+    return NULL;
+}
 
-    pr_info("User written: %s.\n", msg);
+/* This function is called after the beginning of a sequence.
+ * It is called until the return is NULL.
+ */
+static void *_seq_next(struct seq_file *s, void* v, loff_t *pos)
+{
+    pr_info("%s(): invoked.\n", __FUNCTION__);
 
-    *offset += size;
+    int* temp_pointer_to_my_counter = (int *)v;
 
-    return size;
+    (*temp_pointer_to_my_counter)++;
+    (*pos)++;
+
+    pr_info("next() is called %d times.\n", *temp_pointer_to_my_counter);
+
+    if (*temp_pointer_to_my_counter >= 5)
+    { // We only run next() 5 times.
+        *temp_pointer_to_my_counter = 0;
+        return NULL;
+    }
+
+    return v;
+}
+
+static void _seq_stop(struct seq_file *s, void* v)
+{
+    pr_info("%s(): invoked.\n", __FUNCTION__);
+    // Do nothing.
+}
+
+/* This function is called each `step` in sequence.
+ */
+static int _seq_show(struct seq_file *s, void *v)
+{
+    pr_info("%s(): invoked.\n", __FUNCTION__);
+    pr_info("Current step is: %d.\n", *(int *)v);
+
+    return OK;
 }
 
 module_init(_module_init);

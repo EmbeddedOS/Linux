@@ -673,3 +673,17 @@ struct proc_ops {
 
 - It is importance to note that the *standard roles of read and write are reversed* in the kernel.
   - Read functions are used for output, whereas write functions are used for input. The reason for that is that read and write refer to the user’s point of view — if a process reads something from the kernel, then the kernel needs to output it, and if a process writes something to the kernel, then the kernel receives it as input.
+
+### 7.4. Manage `/proc` file with `seq_file`
+
+- Writing a `/proc` file may be quite `complex`. So to help people writing `/proc` file, there is an API named `seq_file` that helps formating a `/proc` file for output. It is based on sequence, which is composed of 3 functions: `start()`, `next()`, `stop()`. The `seq_file` API starts a sequence when a user read the `/proc` file.
+
+- A sequence begins with the call of the function start(). If the return is a non `NULL` value, the function `next()` is called. This function is an iterator, the goal is to go through all the data.
+
+- Each time `next()` is called, the function `show()` is also called. It writes data value in the buffer read by the user. The function `next()` is called until it returns `NULL`.
+
+- The sequence ends when `next()` return `NULL`, then the function `stop()` is called.
+
+- BE CAREFUL: when a sequence is finished, another one starts. That means that at the end of fuction `stop()`, the function `start()` is called again. This loop **ONLY FINISHES** when the function `start()` return `NULL`.
+
+- The `seq_file` provides basic functions for `proc_ops`, such as `seq_read()`, `seq_lseek()`, and some others. But nothing to write in the `/proc` file.
