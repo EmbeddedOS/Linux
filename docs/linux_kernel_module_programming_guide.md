@@ -687,3 +687,49 @@ struct proc_ops {
 - BE CAREFUL: when a sequence is finished, another one starts. That means that at the end of fuction `stop()`, the function `start()` is called again. This loop **ONLY FINISHES** when the function `start()` return `NULL`.
 
 - The `seq_file` provides basic functions for `proc_ops`, such as `seq_read()`, `seq_lseek()`, and some others. But nothing to write in the `/proc` file.
+
+## 8. sysfs: Interacting with your module
+
+- `sysfs` allows u to interact with the running kernel from userspace by reading or setting variables inside of modules. This can be useful for `debugging` purposes, or just as an interface for applications or scripts. U can find `sysfs` directories and files under the `/sys` directory on your system.
+
+```bash
+ls -l /sys
+```
+
+- Attributes can be exported for kobjects in the form of regular files in the filesystem. Sysfs forwards file I/O operations to methods defined for the attributes, providing a means to read and write kernel attributes.
+
+- An attribute definition in simply:
+
+```C
+struct attribute {
+  char* name;
+  struct module *owner;
+  umode_t mode;
+}
+
+int sysfs_create_file(struct kobject * kobj, const struct attribute * attr);
+void sysfs_remove_file(struct kobject * kobj, const struct attribute * attr);
+```
+
+- For example, the driver model defines `struct device_attribute` like:
+
+```C
+struct device_attribute {
+  struct attribute attr;
+  ssize_t (*show)(struct device *dev, struct device_attribute *attr, char *buf);
+  ssize_t (*store)(struct device *dev, struct device_attribute *attr, const char *buf, size_t count);
+};
+
+int device_create_file(struct device *, const struct device_attribute *);
+void device_remove_file(struct device *, const struct device_attribute *);
+```
+
+- To read or write attributes, `show()` or `store()` method must be specified when declaring the attribute. For the common cases [include/linux/sysfs.h](https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git/tree/include/linux/sysfs.h) provides convenience macros (`__ATTR`, `__ATTR_RO`, `__ATTR_WO`, etc) to make defining attributes easier as well as making code more concise and readable.
+
+- Install module: `insmod sysfs.ko`
+
+- Get the current value: `cat /sys/kernel/larva_property/_property`
+- Set new value: `echo 1 > /sys/kernel/larva_property/_property`
+
+- Since Linux v2.6.0, the `kobject` structure made its appearance. It was initially meant as a simple way of unifying kernel which manages reference counted object. After a bit of mission creep, it is now the glue that holds much of the device model and its sysfs interface together. For more information: [driver-model](https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git/tree/Documentation/driver-api/driver-model/driver.rst), [kobject](https://lwn.net/Articles/51437/).
+
