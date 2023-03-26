@@ -733,3 +733,21 @@ void device_remove_file(struct device *, const struct device_attribute *);
 
 - Since Linux v2.6.0, the `kobject` structure made its appearance. It was initially meant as a simple way of unifying kernel which manages reference counted object. After a bit of mission creep, it is now the glue that holds much of the device model and its sysfs interface together. For more information: [driver-model](https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git/tree/Documentation/driver-api/driver-model/driver.rst), [kobject](https://lwn.net/Articles/51437/).
 
+## 9. Talk to device files
+
+- Device files are supposed to represent physcal devices. Most physical devices are used for output as well as input, so there has to be some mechanism for device drivers in the kernel to get the output to send to the device from processes. This is done by opening the device file for output and writing to it, just like writing to a file.
+
+- This is not always enough. Imagine u had a serial port connected to a modem (even if u have an internal modem, it is still implemented from the CPU's perspective as a serial port connected to a modem, so u don't have to tax your imagination too hard).
+  - The nature thing to do would be use the device file to write things to the modem and read things from the modem.
+  - However, this leaves open question of `what to do when u need talk to the serial port itself?`, for example, to configure the rate at which data is sent and received.
+
+- The answer in UNIX is to use a **special function** called `ioctl` (Input/Output Control).
+  - Every device can have its own `ioctl` commands, which can be read ioctl's (to send information from a process to the kernel), write ioctl's (to return information to a process), both or neither.
+  - **NOTICE** here the roles of read and write are reversed again, so int ioctl's read is to send info to the kernel and write is to receive info from kernel.
+
+- The `ioctl` function is called with three arguments:
+  - file descriptor of the device file.
+  - ioctl number, and
+  - a parameter: which is of type long so u can use a cast to use it to pass anything.
+
+- U will not be able to pass a structure this way, but u will be able to pass a pointer to the structure.
