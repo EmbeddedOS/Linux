@@ -3,6 +3,7 @@ obj-m += module_param.o
 obj-m += char_device.o
 obj-m += proc.o
 obj-m += proc_seq_file.o
+obj-m += sysfs.o
 
 PWD := $(CURDIR)
 
