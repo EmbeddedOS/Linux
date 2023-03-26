@@ -751,3 +751,9 @@ void device_remove_file(struct device *, const struct device_attribute *);
   - a parameter: which is of type long so u can use a cast to use it to pass anything.
 
 - U will not be able to pass a structure this way, but u will be able to pass a pointer to the structure.
+
+- The ioctl number encodes the major device number, the type of the ioctl, the command, and the type of the parameter.
+  - This ioctl number is usually created by a macro call (`_IO`, `_IOR`, `_IOW` or `_IOWR` — depending on the type) in a header file.
+  - NOTE: *This header file should then be included both by the programs which will use ioctl (so they can generate the appropriate ioctl’s) and by the kernel module (so it can understand it).*
+
+## 10. system calls
