@@ -795,4 +795,69 @@ void device_remove_file(struct device *, const struct device_attribute *);
 
 - Unfortunately, since Linux v5.7 `kallsyms_lookup_name` is also unexported, it needs certain trick to get the address of `kallsyms_lookup_name`.
   - If `CONFIG_KPROBES` is enabled, we can facilitate the retrieval of function addresses by means of *Kprobes* to dynamically break into the specific kernel routine. `Kprobes` inserts a breakpoint at the entry of function by replacing the firsts bytes of the probed instruction.
-  - When a CPU hits the breakpoint, registers are stored, and the control will pass to Kprobes.
+  - When a CPU hits the breakpoint, registers are stored, and the control will pass to Kprobes. It passes the addresses of the saved registers and the Kprobe struct to the handler u defined, then executes it. Kprobes can be registered by symbol name or address. Within the symbol name, the address will be handled by the kernel.
+
+- Otherwise, specify the address of `sys_call_table` from `/proc/kallsyms`and `/boot/System.map` into a parameter. For example:
+
+```bash
+$ sudo grep sys_call_table /proc/kallsyms
+ffffffffb2a004c0 D sys_call_table
+ffffffffb2a01540 D ia32_sys_call_table
+
+$ sudo insmod syscall.ko sym=0xffffffff820013a0
+```
+
+- Using the address from `/boot/System.map`, be careful about `KASLR` (Kernel Address Space Layout Randomization). `KASLR` may randomize the address of kernel code and data at every boot time, such as the static address listed in `/boot/System.map` will offset by some entropy.
+  - The purpose of `KASLR` is to protect the kernel space from attacker. Without `KASLR`, the attacker may find the target address in the fixed address easily. Then the attacker can use return-oriented programming to insert some malicious codes to execute or receive the target data by a tampered pointer. KASLR mitigates these kinds of attacks because the attacker cannot immediately know the target address, but a brute-force attack can still work. If the address of symbol in `/proc/kallsyms` is different from thr address on `/boot/System.map`, `KASLR` is enabled with the kernel, which your system running on.
+
+- Before rebooting:
+
+```bash
+$ grep GRUB_CMDLINE_LINUX_DEFAULT /etc/default/grub
+GRUB_CMDLINE_LINUX_DEFAULT="quiet splash"
+```
+
+```bash
+$ sudo grep sys_call_table /boot/System.map-$(uname -r)
+ffffffff824004c0 D sys_call_table
+ffffffff82401540 D ia32_sys_call_table
+
+$ sudo grep sys_call_table /proc/kallsyms
+ffffffffb2a004c0 D sys_call_table
+ffffffffb2a01540 D ia32_sys_call_table
+```
+
+- After rebooting:
+
+```bash
+$ sudo reboot
+
+$ sudo grep sys_call_table /boot/System.map-$(uname -r)
+
+ffffffff824004c0 D sys_call_table
+ffffffff82401540 D ia32_sys_call_table
+
+$ sudo grep sys_call_table /proc/kallsyms
+ffffffffb38004c0 D sys_call_table
+ffffffffb3801540 D ia32_sys_call_table
+```
+
+- If `KASLR` is enabled, we have to take care of the address from `/proc/kallsyms` each time we reboot machine. In order to use the address from `/boot/System.map`, make sure that `KASLR` is disabled.
+
+```bash
+$ grep GRUB_CMDLINE_LINUX_DEFAULT /etc/default/grub
+GRUB_CMDLINE_LINUX_DEFAULT="quiet splash"
+
+$ sudo perl -i -pe 'm/quiet/ and s//quiet nokaslr/' /etc/default/grub
+$ grep quiet /etc/default/grub
+GRUB_CMDLINE_LINUX_DEFAULT="quiet nokaslr splash"
+$ sudo update-grub
+```
+
+- For more information:
+  - [Cook: Security things in Linux v5.3](https://lwn.net/Articles/804849/)
+  - [Unexported the system call table](https://lwn.net/Articles/12211/)
+  - [Control-flow integrity for the kernel](https://lwn.net/Articles/810077/)
+  - [Unexporting kallsyms_lookup_name()](https://lwn.net/Articles/813350/)
+  - [Kernel Probes](Kprobes)
+  - [Kernel address space layout randomization](https://lwn.net/Articles/569635/)
