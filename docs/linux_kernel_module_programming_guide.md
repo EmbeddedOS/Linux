@@ -792,3 +792,7 @@ void device_remove_file(struct device *, const struct device_attribute *);
     `gcc -v -Q -O2 --help=target | grep protection`
 
   - But CET should not be enabled in the kernel, it may break the `Kprobes` and `bpf`. Consequently, CET is disabled since v5.11. To guarantee the manual symbol lookup worked, we only use up to v5.4.
+
+- Unfortunately, since Linux v5.7 `kallsyms_lookup_name` is also unexported, it needs certain trick to get the address of `kallsyms_lookup_name`.
+  - If `CONFIG_KPROBES` is enabled, we can facilitate the retrieval of function addresses by means of *Kprobes* to dynamically break into the specific kernel routine. `Kprobes` inserts a breakpoint at the entry of function by replacing the firsts bytes of the probed instruction.
+  - When a CPU hits the breakpoint, registers are stored, and the control will pass to Kprobes.
