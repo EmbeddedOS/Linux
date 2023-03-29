@@ -69,6 +69,8 @@ static inline void _write_cr0_register(_reg_t cr0)
  * replaced the system call before us (-_-). Another reason is that we can
  * not get sys_openat() function because it is a static function and
  * is not exported.
+ * 
+ * System call prototype: /lib/modules/(uname -r)/build/include/linux/syscalls.h
  */
 #if defined(CONFIG_ARCH_HAS_SYSCALL_WRAPPER)
 static asmlinkage long (*_original_openat)(const struct pt_regs *);
