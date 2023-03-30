@@ -861,3 +861,13 @@ $ sudo update-grub
   - [Unexporting kallsyms_lookup_name()](https://lwn.net/Articles/813350/)
   - [Kernel Probes](Kprobes)
   - [Kernel address space layout randomization](https://lwn.net/Articles/569635/)
+
+## 11. Blocking Processes and threads
+
+### 11.1. Sleep
+
+- What do u do when somebody asks u for something u can not do right away? If u are a human being and u are bothered by a human being, the only thing u can say is: `Not right now, I'm busy. Go away!`. But if u are a kernel module and u are bothered by a process, u have another possibility. U can *put the process to sleep* until u can service it. After all, processes are being put to sleep by the kernel and woken up all the time (that is the way multiple processes appear to run on the same time on a single CPU).
+
+- This kernel module is an example of this. The file (called `/proc/sleep`) can only be opened by a single process at a time. If the file is already open, the kernel module calls `wait_event_interruptible`. The easiest way to keep a file open it with: `tail -f`
+
+- This function changes the status of the task (a task is the kernel data structure which holds information about a process and the system call it is in, if any)
