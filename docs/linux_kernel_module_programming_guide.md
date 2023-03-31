@@ -870,4 +870,9 @@ $ sudo update-grub
 
 - This kernel module is an example of this. The file (called `/proc/sleep`) can only be opened by a single process at a time. If the file is already open, the kernel module calls `wait_event_interruptible`. The easiest way to keep a file open it with: `tail -f`
 
-- This function changes the status of the task (a task is the kernel data structure which holds information about a process and the system call it is in, if any)
+- This function changes the status of the task (a task is the kernel data structure which holds information about a process and the system call it is in, if any) to `TASK_INTERRUPTIBLE`, which means that the task will not run until it is woken up somehow, and adds it to `WaitQ`, the queue of tasks waiting to access the file. Then the function calls the scheduler to context switch to a different process, one which has some use for the CPU.
+- When a process is done with the file, it close it, and `module_close` is called. That function wakes up all the processes in the queue (there is no mechanism to only wake up one of them). It then returns and the process which just closed the file can continue to run. In time, the scheduler decides that process has had enough and gives control of the CPU to another process. Eventually, one of the processes which was in queue will be given control of the CPU by the scheduler. It starts at the point right after the call to `module_interruptible_sleep_on`.
+
+- This means that the process is still in kernel mode - as far as the process is concerned, it issued the open system call and the system call has not returned yet. The process does not know somebody else used the CPU for most of the time between the moment it issued the call and the moment it returned.
+
+- It can the proceed to set a global variable to tell all the other processes that the file is still open and go on with its life.
