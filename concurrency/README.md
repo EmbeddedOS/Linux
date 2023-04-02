@@ -7,9 +7,9 @@
   - Multiple Core Environment (True parallelism):
     - Multiple processes executing simultaneously on multiple processors/CPU's.
 
-## Background of Multiprocessing
+## 1. Background of Multiprocessing
 
-### Multiprocessing systems
+### 1.1. Multiprocessing systems
 
 - Multiprocessing systems
   - Each CPU has its own OS.
@@ -32,7 +32,7 @@ _______________________________________BUS______________________________________
   - No sharing of pages. It can happen that CPU 1 has pages to share while CPU 2 is paging continuously. There is no way for CPU 2 to borrow some pages from CPU 1 since the memory allocation is fixed.
   - If the OS maintains a buffer cache of recently used disk blocks, each OS does this independently of the other ones. Thus it can happen that a certain disk block is present and dirty in multiple buffer caches at the same time, leading to inconsistent results.
 
-### A master-slave multiprocessor model
+### 1.2. A master-slave multiprocessor model
 
 - One copy of OS and its tables are present on CPU 1 and not on any of the others.
 - All system calls are redirected to CPU 2 for processing there.
@@ -60,7 +60,7 @@ _______________________________________BUS______________________________________
   - If, say, 10% of all time is spent handling system calls, then 10 CPUs will pretty much saturate the master, and with 20 CPUs it will be completely overloaded.
   - Thus, this model is simple and workable for small multiprocessors, but for large ones it fails.
 
-### Symmetric Multiprocessor (SMP)
+### 1.3. Symmetric Multiprocessor (SMP)
 
 - One copy of the OS is in memory, but any CPU can run it.
 
@@ -84,7 +84,7 @@ _______________________________________BUS______________________________________
   - For example, there is no problem with one CPU running the scheduler while another CPU is handling a file system call and a third one is processing a page fault.
   - This observation leads to splitting the OS up into independent critical regions that do no interact with one another. Each critical region is protected by its own mutex, so only one CPU at a time can execute it.
 
-## Preemption and context switch in Linux Kernel
+## 2. Preemption and context switch in Linux Kernel
 
 - What is preemption?
   - `Preemption` means forcefully taking away of the processor from one process and allocating it to another process.
@@ -98,7 +98,7 @@ _______________________________________BUS______________________________________
   - `context switch`: What happens when the kernel alters the state of the processor (the registers, mode, and stack) between one process or thread's context and another.
     - [context_switch()](https://github.com/torvalds/linux/blob/master/kernel/sched/core.c) function is called in the kernel.
 
-### Preemption in kernel space and user space
+### 2.1. Preemption in kernel space and user space
 
 - User space:
   - Under Linux, US programs have always been preemptible: the kernel interrupts US programs to switch to other threads, using the regular clock tick.
@@ -112,14 +112,14 @@ _______________________________________BUS______________________________________
   - So, kernel preemption has been introduced in 2.6 kernels, and one can enable or disable it using the `CONFIG_PREEMPT` option.
     - An infinite loop in the code can no longer block the entire system.
 
-### When can kernel preemption happen
+### 2.2. When can kernel preemption happen
 
 - When returning to kernel-space from an interrupt handler.
 - When kernel code becomes preemptible again.
 - If a task in the kernel explicitly calls `schedule()`.
 - If a task in the kernel blocks (which results in a call to `schedule()`).
 
-### Example
+### 2.3. Example
 
 - First example, while process A executes an exception handler (necessarily in Kernel Mode), a higher priority process B becomes runnable.
   - This could happen, if an IRQ occurs and the corresponding handler awakens process B.
@@ -133,7 +133,7 @@ _______________________________________BUS______________________________________
     - the delay between the time they become runnable and the time they actually begin running.
   - Processes performing timely scheduled tasks (such as external hw controllers, environmental monitors, movie players, and so on) really benefit from kernel preemption, because it reduces the risk of being delayed by another process running in kernel mode.
 
-## Reentrancy
+## 3. Reentrancy
 
 - What is a kernel `control path`?
   - A kernel control path denotes the sequence of instructions executed by the kernel to handle a system call, an exception, or an interrupt.
@@ -141,3 +141,11 @@ _______________________________________BUS______________________________________
 - `Reentrant` kernels
   - Linux kernel is reentrant. This means that several processes may be executing in Kernel Mode at the same time.
   - On uniprocessor systems, only one process can progress, but many can be blocked in Kernel Mode when waiting for the CPU or the completion of some I/O operation.
+
+## Per CPU variable
+
+- The simplest and most efficient synchronization technique consists of declaring kernel variables as per-CPU variables.
+- Basically, a per CPU variables is an array of data structures, one element per each CPU in the system.
+- A CPU should not access the elements of the array corresponding to other CPU.
+- IT can freely read and modify its own element without fear of race conditions, because it is the only entitled to do so.
+- The elements of the per-CPU array are aligned in main memory so that each data structure falls on a different line of the hardware cache.
