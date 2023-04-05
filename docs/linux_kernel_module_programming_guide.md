@@ -875,4 +875,6 @@ $ sudo update-grub
 
 - This means that the process is still in kernel mode - as far as the process is concerned, it issued the open system call and the system call has not returned yet. The process does not know somebody else used the CPU for most of the time between the moment it issued the call and the moment it returned.
 
-- It can the proceed to set a global variable to tell all the other processes that the file is still open and go on with its life.
+- It can the proceed to set a global variable to tell all the other processes that the file is still open and go on with its life. When the other processes get a piece of the CPU, they will see that global variable and go back to sleep.
+
+- So we will use `tail -f` to keep the file open in the backgroud, while trying to access it with another process (again in the background, so that we need not switch to a different vt). As soon as the first background process is killed with `kill%1`, the second is woken up, is able to acess the file and finally terminates.

@@ -1,6 +1,11 @@
+
 /* syscall.c - system calls spying.
- * We can get all information of communication between user program 
+ * We can get all information of communication between user program
  * and kernel by replacing system calls.
+ *
+ * For system call number, lookup: `/lib/modules/$(uname -r)/build/include/uapi/asm-generic/unistd.h`
+ * For system call prototype, lookup: `/lib/modules/(uname -r)/build/include/linux/syscalls.h`
+ * For system call table address, look up: `/boot/System.map-$(uname -r)` or `/proc/kallsyms`.
  */
 
 #include <linux/init.h>
@@ -69,8 +74,6 @@ static inline void _write_cr0_register(_reg_t cr0)
  * replaced the system call before us (-_-). Another reason is that we can
  * not get sys_openat() function because it is a static function and
  * is not exported.
- * 
- * System call prototype: /lib/modules/(uname -r)/build/include/linux/syscalls.h
  */
 #if defined(CONFIG_ARCH_HAS_SYSCALL_WRAPPER)
 static asmlinkage long (*_original_openat)(const struct pt_regs *);
