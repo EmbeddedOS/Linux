@@ -878,3 +878,7 @@ $ sudo update-grub
 - It can the proceed to set a global variable to tell all the other processes that the file is still open and go on with its life. When the other processes get a piece of the CPU, they will see that global variable and go back to sleep.
 
 - So we will use `tail -f` to keep the file open in the backgroud, while trying to access it with another process (again in the background, so that we need not switch to a different vt). As soon as the first background process is killed with `kill%1`, the second is woken up, is able to acess the file and finally terminates.
+
+- To make our life more interesting, `module_close` does not have a monopoly on waking up the processes which wait to access the file. A signal, such as `Ctrl + C` (SIGINT) can also wake up a process, this is because we used `module_interruptable_sleep_on`. We could have used `module_sleep_on` instead, but that would have resulted in extremely angry users whose `Ctrl + C`'s are ignored.
+
+- There is one more point to remember. Some times processes don't want to sleep, they want either to get what they want immediately, or to be told it cannot be done. Such processes use the `O_NONBLOCK` flag when opening the file. The kernel is supposed to respond by returning with the error code `-EAGAIN` from operations which would otherwise block.

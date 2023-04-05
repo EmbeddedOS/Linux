@@ -5,6 +5,7 @@ obj-m += proc.o
 obj-m += proc_seq_file.o
 obj-m += sysfs.o
 obj-m += ioctl.o
+obj-m += block.o
 
 PWD := $(CURDIR)
 
@@ -15,3 +16,4 @@ clean:
 
 usr:
 	gcc usr_ioctl.c -o usr_ioctl.o
+	gcc 
