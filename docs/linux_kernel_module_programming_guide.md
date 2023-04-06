@@ -882,3 +882,62 @@ $ sudo update-grub
 - To make our life more interesting, `module_close` does not have a monopoly on waking up the processes which wait to access the file. A signal, such as `Ctrl + C` (SIGINT) can also wake up a process, this is because we used `module_interruptable_sleep_on`. We could have used `module_sleep_on` instead, but that would have resulted in extremely angry users whose `Ctrl + C`'s are ignored.
 
 - There is one more point to remember. Some times processes don't want to sleep, they want either to get what they want immediately, or to be told it cannot be done. Such processes use the `O_NONBLOCK` flag when opening the file. The kernel is supposed to respond by returning with the error code `-EAGAIN` from operations which would otherwise block.
+
+## 13. Replacing Print Macros
+
+### 13.1. Replacement
+
+- In actual use, u want to be able to send messages to whichever `tty` command to load the module came from.
+- `tty` is an abbreviation of `teletype`: originally a combination keyboard-printer used to communicate with a UNIX system, and today an abstraction for the text stream used for a UNIX program, whether it is a physical terminal, an xterm on an X display, a network connection used with ssh, etc.
+
+- The way this is done is by using `current`, a pointer to the currently running task, to get the current task's `tty structure`. Then, we look inside that `tty structure` to find a pointer to a `string write function`, which we use to write a string to the `tty`.
+
+### 13.2. Flashing Keyboard LEDs
+
+- In certain conditions, u may desire a simpler and more direct way to communicate to the external world. Flashing keyboard LEDs can be such a solution: `It is an immediate way to attract attention or to display a status condition.`
+  - Keyboard LEDs are present on every hardware, they are always visible, they do need any setup, and their use is rather simple and non-instrusive, compared to writing to a `tty` or a file.
+
+- From v4.14 to v4.15, the timer API made a series of changes to improve memory safety. A buffer overflow in the area of a `timer_list` structure may be able to overwrite the `function` and `data` fields, providing the attacker with a way to use return-object programming (ROP) to call arbitrary functions within the kernel.
+  - Also, so function prototype of the callback, containing a `unsigned long` argument, will prevent work from any type checking.
+  - Furthermore, the function prototype with `unsigned long` argument may be an obstacle to the forwardedge protection of `control-flow integrity`. Thus, it is better to use a unique prototype to separate from the cluster that takes an `unsigned long` argument.
+  - The timer callback should be passed a pointer to the `timer_list` structure, into a larger structure, and it can use the `container_of` macro instead of the `unsigned long` value.
+  - For more information: [Improve the kernel timers API.](https://lwn.net/Articles/735887/)
+
+- Before Linux v4.14, `setup_timer` was used to initialize the timer and the `timer_list` structure looked like:
+
+```C
+struct timer_list {
+  unsigned long expires;
+  void (*function)(unsigned long);
+  unsigned long data;
+  u32 flags;
+  /* ... */
+};
+
+void setup_timer(struct timer_list *timer, void (*callback)(unsigned long), unsigned long data);
+```
+
+- Since Linux v4.14, `timer_setup` is adopted and the kernel step by step converting to `timer_setup` from `setup_timer`. One of the reasons why API was changed is it need to coexist with the old version interface. Moreover, the `timer_setup` was implemented by `setup_timer` at first.
+
+```C
+void timer_setup(struct timer_list *timer, void (*callback)(struct timer_list *), unsigned int flags);
+```
+
+- The `setup_timer()` was then removed since v4.15. As a result, the `timer_list` structure had changed to the following:
+
+```C
+struct timer_list {
+  unsigned long expires;
+  void (*function)(struct timer_list *);
+  u32 flags;
+  /* ... */
+};
+```
+
+## 14. Scheduling tasks
+
+- There are two main ways of running tasks:
+  - `tasklets`.
+  - `work queues`.
+
+- Tasklets are
