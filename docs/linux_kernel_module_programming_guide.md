@@ -940,4 +940,28 @@ struct timer_list {
   - `tasklets`.
   - `work queues`.
 
-- Tasklets are
+- **Tasklets** are a quick and easy way of scheduling a **single** function to be run. For examples, when triggered from an interrupt, whereas **work queues** are more complicated but also better suited to running **multiple** things in a sequence.
+
+### 14.1. tasklet
+
+- The tasklet callback runs in atomic context, inside a software interrupt, meaning that is cannot sleep or access user-space data, so not all work can be done in a tasklet handler. Also, the kernel only allows one instance of any given tasklet to be running at any given time; multiple different tasklet callbacks can run in parallel.
+
+- In recent kernels, tasklets can be replaced by `workqueues`, `timers`, or `threaded interrupts`. While the removal of tasklets remains a longer-term goal, the current kernel contains more than a hundred uses of tasklets.
+
+### 14.2. Work queues
+
+- To add a task to the scheduler we can use a work queue. The kernel then can uses the `Completely Fair Scheduler (CFS)` to execute work within the queue.
+
+## 15. Interrupt handlers
+
+### 15.1. Interrupt Handlers
+
+- Except for the last chapter, everything we did in the kernel so far we have done as a response to a process asking for it, either by dealing with a `special file`, sending an `ioctl()`, or issuing a `system call`. But the job, which is every bit as important, is to speak to the hardware connected to the machine.
+
+- There are *two* types of interaction between the CPU and the rest of the computer's hardware.
+  - The first type is when the CPU gives orders to the hardware, the other is when the hardware needs to tell the CPU something.
+  - The second, called interrupts, is much harder to implement because it has to be dealt with when convenient for the hardware, not the CPU. Hardware devices typically have a very small amount of RAM, and if u do not read their information when available, it is lost.
+
+- Under Linux, hardware intterupts are called IRQ's (Interrupt ReQuests). There are two types of IRQ's, `short` and `long`.
+  - A `short` IRQ is one which is expected to take a very short period of time, during which the rest of the machine will be blocked and no other interrupts will be handled.
+  - A `long` IRQs is one which can take longer, and during which other interrupts may occur (but not interrupts from the same device). If at all possible, *it is better to declare an intterupt handler to be long*.
