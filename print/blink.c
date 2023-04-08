@@ -80,7 +80,11 @@ static inline void _reset_timer(void)
     add_timer(&_timer);
 }
 
-
+/* callback function below blinks the keyboard LED periodically by
+ * invoking command `KDSETLED` of ioctl() on the keyboard driver.
+ * More on virtual terminal ioctl operations, see file:
+ * https://github.com/torvalds/linux/blob/master/drivers/tty/vt/vt_ioctl.c
+ */
 static void _callback(struct timer_list *timer)
 {
     pr_info("%s(): invoked.\n", __FUNCTION__);

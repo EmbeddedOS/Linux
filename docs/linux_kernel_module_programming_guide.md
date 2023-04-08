@@ -965,3 +965,27 @@ struct timer_list {
 - Under Linux, hardware intterupts are called IRQ's (Interrupt ReQuests). There are two types of IRQ's, `short` and `long`.
   - A `short` IRQ is one which is expected to take a very short period of time, during which the rest of the machine will be blocked and no other interrupts will be handled.
   - A `long` IRQs is one which can take longer, and during which other interrupts may occur (but not interrupts from the same device). If at all possible, *it is better to declare an intterupt handler to be long*.
+
+- When the CPU receives an interrupt, it stops whatever it is doing (unless it is processing a more important intterupt, in which case it will deal with this one only when the more important one is done), save *certain parameters on the stack* and calls the interrupt handler.
+  - This means that certain things are not allowed in the interrupt handler itself, because the system is in an unknown state.
+    - Linux kernel solves the problem by splitting interrupt handling into two parts.
+      - The first part executes right away ans masks the intterrupt line.
+      - Hardware interrupts must be handle quickly, and that os why we need the scond part to handle the heavy work deferred from an interrupt handler.
+
+- The way to implement this is to call `request_irq()` to get your interrupt handler called when the relevant IRQ is received.
+
+- In practice IRQ handling can be a bit more complex. Hardware is often designed in a way that chains two interrupt controllers, so that all the IRQs from interrupt controller B are cascaded to a certain IRQ from interrupt controller A. Of course, that requires that the kernel finds out which IRQ it really was afterwards and that adds overhead.
+
+- Other architectures offer some special, very low overhead, so called `fast IRQ` or FIQs. To take advantage of them requires handlers to be written in **assembly language**, so they do not really fit into the kernel. They can be made to work similar to the others, but after that procedure, they are no longer any faster than `common` IRQs.
+
+- SMP enabled kernels running on systems with more than one processor need to solve another truckload of problems. It is not enough to know if a certain IRQs has happened, it is also important to know what CPU(s) it was for.
+
+- This function receives the IRQ number, the name of the function, flags, a name for `/proc/interrupts` and a parameter to be passed to the interrupt handler. Usually there is a certain number of IRQs available.
+
+- How many IRQs there are is hardware-dependent. The flag can include `SA_SHIRQ` to indicate you are willing to share the IRQ with other intterrupt handler (usually because a number of hardware devices sit on same IRQ) and `SA_INTERRUPT` to indicate this is a fast interrupt.
+
+- This function will only success if there is not already a handler on this IRQ, or if u are both willing to share.
+
+### 15.2. Detecting button presses
+
+- many popular single computer, such as `Raspberry Pi` or `Beagleboards`, have a bunch of GPIO pins. Attaching button to those and then having a button press do something is a classic case in which u might need to use interrupts, so that instead of having the CPU waste time and battery power polling for a change in input state, it is better for the input to trigger the CPU to then run a particular handling function.
