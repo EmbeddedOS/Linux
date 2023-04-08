@@ -7,13 +7,13 @@
 #include <linux/printk.h>
 #include <linux/interrupt.h>
 
-static void _task_f(unsigned long data);
+static void _task_f(struct tasklet_struct* data);
 
 /* @name: task name
  * @func: call back function.
  * @data: data argument.
  */
-static DECLARE_TASKLET(_task, _task_f, 0L);
+static DECLARE_TASKLET(_task, _task_f);
 
 static int __init _tasklet_init(void)
 {
@@ -28,7 +28,7 @@ static void __exit _tasklet_exit(void)
     tasklet_kill(&_task);
 }
 
-static void _task_f(unsigned long data)
+static void _task_f(struct tasklet_struct* data)
 {
     pr_info("%s(): entering.\n", __FUNCTION__);
     mdelay(5000);

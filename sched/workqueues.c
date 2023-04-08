@@ -1,5 +1,5 @@
- /* workqueues.c - Schedule multiple tasks with the work queues.
-  */
+/* workqueues.c - Schedule multiple tasks with the work queues.
+ */
 
 #include <linux/module.h>
 #include <linux/init.h>
@@ -36,13 +36,13 @@ static int __init _workqueues_init(void)
      * 
      * return a pointer to allocated workqueue on success, NULL on failure.
      */
-    _workqueue = alloc_workqueue("LARVAQUEUE", WQ_UNBOUND, 1);
+    _workqueue = alloc_workqueue("Larva queue", WQ_UNBOUND, 8);
     if (_workqueue == NULL)
     {
          return -ENOMEM;
     }
 
-    INIT_WORK(&_work, _workqueue);
+    INIT_WORK(&_work, _task_f);
 
     schedule_work(&_work);
 
