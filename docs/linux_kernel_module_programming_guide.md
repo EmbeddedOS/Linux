@@ -895,7 +895,9 @@ $ sudo update-grub
 
 - As the name suggests, spinlocks lock up the CPU that the code is running on, taking 100% of its resources. Because of this u should only use the spinlock mechanism around code which is likely to take no more than a few milliseconds to run and so will not noticeably slow anything down from the user's point of view.
 
-- 
+### 12.3. Read and write locks
+
+- Read and write locks are specialised kinds of spinlocks so that u can exclusive read from something or write to something.
 
 ## 13. Replacing Print Macros
 
