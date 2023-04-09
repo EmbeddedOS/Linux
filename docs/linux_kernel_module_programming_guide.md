@@ -883,6 +883,10 @@ $ sudo update-grub
 
 - There is one more point to remember. Some times processes don't want to sleep, they want either to get what they want immediately, or to be told it cannot be done. Such processes use the `O_NONBLOCK` flag when opening the file. The kernel is supposed to respond by returning with the error code `-EAGAIN` from operations which would otherwise block.
 
+## 12. Avoiding Collisions and Deadlocks
+
+### 12.1 Mutex
+
 ## 13. Replacing Print Macros
 
 ### 13.1. Replacement
@@ -989,3 +993,62 @@ struct timer_list {
 ### 15.2. Detecting button presses
 
 - many popular single computer, such as `Raspberry Pi` or `Beagleboards`, have a bunch of GPIO pins. Attaching button to those and then having a button press do something is a classic case in which u might need to use interrupts, so that instead of having the CPU waste time and battery power polling for a change in input state, it is better for the input to trigger the CPU to then run a particular handling function.
+
+### 15.3. Bottom Half
+
+- Suppose u want to do a bunch of stuff inside of an interrupt routine. A common way to do that without redering the interrupt unavailable for a significant duration is to combine it with a tasklet. This pushes the bulk of the work off into scheduler.
+
+## 16. Crypto
+
+- At the dawn of the internet, everybody trusted everybody completely ... but that did not work out so well. To handle crypto stuff, the kernel has its own API enabling commons methods of encryption, decryption and your favourite hash functions.
+
+### 16.1. Hash functions
+
+- Calculating and checking the hash of things is a common operation. Here is a demonstration of how to calculate a sha256 hash within a kernel module. To provide the sha256 algorithm support, make sure `CONFIG_CRYPTO_SHA256` is enable in kernel.
+
+### 16.2. Symmetric key encryption
+
+## 17. Virtual Input device driver
+
+- The input device driver is a module that provides a way to communicate with the interaction device via the event. For example, the keyboard can send the press or release event to tell the kernel what we want to do.
+- The input device driver will allocate a new input structure with `input_allocate_device()` and sets up input bitfields, device id, version, etc. After that, registers it by calling `input_register_device()`.
+
+- Here is an example, `vinput`, it is an API to allow easy development of virtual input drivers. The drivers needs to export a `vinput_device()` that contains the virtual device name and `vinputs_ops` structure that describes:
+  - the init function: `init()`
+  - the input event injection function: `send()`
+  - the readback function: `read()`
+
+- Then using `vinput_register_device()` and `vinput_unregister_device()` will add a new device to the list of support virtual input devices.
+
+```C
+int init(struct vinput *);
+```
+
+- This function is passed a `struct vinput` already initialized with allocated `struct input_dev`. The `init()` function is responsible for initializing the capabilities of the input device and register it.
+
+```C
+int send(struct vinput *, char *, int);
+```
+
+- This function will receive a user string to interpret and inject the event using the `input_report_XXXX` or `input_event` call. The string is already copied from user.
+
+```C
+int read(struct vinput *, char *, int);
+```
+
+- This function is used for debugging and should fill the buffer parameter with the last event sent in the virtual input device format. The buffer will then be copied to user.
+
+- vinput devices are created and destroyed using sysfs. And, event injection is done through a `/dev` node. The device name will be used by the userland to export a new virtual input device.
+
+- The `class_attribute` structure is similar to other attribute types:
+
+```C
+struct class_attribute {
+  struct attribute attr;
+  ssize_t (*show)(struct class * class, struct class_attribute *attr, char *buf);
+  ssize_t (*store)(struct class * class, struct class_attribute *attr, char *buf, size_t count);
+}
+```
+
+- In `vinput.c` the macro `CLASS_ATTR_WO(export/unexport)` defined in [include/linux/device.h](https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git/tree/include/linux/device.h) will generate the `class_attribute` structures which are named `class_attr_export/unexport`.
+- Then, put them into `vinput_class_attrs` array and the macro `ATTRIBUTE_GROUPS(vinput_class)` will generate the `struct attribute_group vinput_class_group` that should be assigned in `vinput_class`. Finally, call `class_register(&vinput_class)` to create attributes in sysfs.

@@ -154,7 +154,7 @@ static ssize_t _read(struct file *f, char __user *p, size_t size, loff_t *offset
     /* We make a interrupt with irq 1 when the device file is read.
      */
     pr_info("%s(): make interrupt %lu.\n", __FUNCTION__, int_no);
-    asm volatile("int $0x01;");
+    asm volatile("int $0x01");
     return 0;
 }
 static ssize_t _write(struct file *f, const char __user *p, size_t size, loff_t *offset)
