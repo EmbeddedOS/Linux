@@ -887,9 +887,15 @@ $ sudo update-grub
 
 - If processes running on different CPUs or in different threads try to access the same memory, then it is possible that strange things can happen or your system can lock up. To avoid this various types of mutual exclusion kernel functions are available. These indicate of a section of code is `locked` or `unlocked` so that simultaneous attempts to run it can not happen.
 
-### 12.1 Mutex
+### 12.1. Mutex
 
 - We can use kernel mutexes (mutual exclusions) in much the same manner that u might deploy them in user-land.
+
+### 12.2. Spinlocks
+
+- As the name suggests, spinlocks lock up the CPU that the code is running on, taking 100% of its resources. Because of this u should only use the spinlock mechanism around code which is likely to take no more than a few milliseconds to run and so will not noticeably slow anything down from the user's point of view.
+
+- 
 
 ## 13. Replacing Print Macros
 

@@ -1,5 +1,6 @@
 obj-m += percpu.o
 obj-m += mutex.o
+obj-m += spinlocks.o
 
 PWD := $(CURDIR)
 
