@@ -1,4 +1,5 @@
 obj-m += percpu.o
+obj-m += mutex.o
 
 PWD := $(CURDIR)
 

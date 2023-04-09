@@ -885,7 +885,11 @@ $ sudo update-grub
 
 ## 12. Avoiding Collisions and Deadlocks
 
+- If processes running on different CPUs or in different threads try to access the same memory, then it is possible that strange things can happen or your system can lock up. To avoid this various types of mutual exclusion kernel functions are available. These indicate of a section of code is `locked` or `unlocked` so that simultaneous attempts to run it can not happen.
+
 ### 12.1 Mutex
+
+- We can use kernel mutexes (mutual exclusions) in much the same manner that u might deploy them in user-land.
 
 ## 13. Replacing Print Macros
 
