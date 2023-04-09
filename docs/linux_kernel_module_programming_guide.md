@@ -899,6 +899,12 @@ $ sudo update-grub
 
 - Read and write locks are specialised kinds of spinlocks so that u can exclusive read from something or write to something.
 
+### 12.4. Atomic operations
+
+- If u are doing simple arithmetic: adding, subtracting or bitwise operations, then there is another way in the multi-CPU and multi-hyperthreaded world to stop other parts of the system from messing with your mojo.
+
+- By using atomic operations u can be confident that your addition, subtraction or bit flip did actually happen and was not overwritten by some other shenanigans.
+
 ## 13. Replacing Print Macros
 
 ### 13.1. Replacement
