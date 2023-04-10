@@ -1,4 +1,5 @@
 obj-m += vinput.o
+obj-m += devicemodel.o
 
 PWD := $(CURDIR)
 

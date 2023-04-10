@@ -1,4 +1,4 @@
-/* block.c
+/* block.c - 
  */
 
 #include <linux/types.h>
@@ -8,6 +8,7 @@
 #include <linux/proc_fs.h>
 #include <linux/version.h>
 #include <linux/uaccess.h>
+#include <linux/wait.h> /* For putting processes to sleep and waking them up. */
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 6, 0)
 #define HAVE_PROC_OPS
@@ -21,8 +22,9 @@ static int _release(struct inode * inode, struct file *f);
 static ssize_t _read(struct file *f, char __user *p, size_t size, loff_t *offset);
 static ssize_t _write(struct file *f, const char __user *p, size_t size, loff_t *offset);
 
-
 static struct proc_dir_entry *_proc_file;
+
+static DECLARE_WAIT_QUEUE_HEAD(waitq);
 
 #ifdef HAVE_PROC_OPS
 static struct proc_ops _fops = {
@@ -40,20 +42,11 @@ static struct file_operations _fops = {
 };
 #endif
 
-static int __init _module_init(void)
+static int __init _block_init(void)
 {
     int res = OK;
     pr_info("%s(): invoked.\n", __FUNCTION__);
 
-    /* Create a file in `/proc`.
-     * @name: `proc` file name.
-     * @mode: file permissions.
-     * @parent: 
-     * @proc_fops: file operations structure that link to the `proc` file.
-     * 
-     * The return value is a struct proc_dir_entry, and it will be used to
-     * configure the `/proc` file. A NULL return value means that the creation has failed.
-     */
     _proc_file = proc_create(PROCFS_NAME, 0644, NULL, &_fops);
     if (_proc_file == NULL)
     {
@@ -74,7 +67,7 @@ out:
     return OK;
 }
 
-static void __exit _module_exit(void)
+static void __exit _block_exit(void)
 {
     pr_info("%s(): invoked.\n", __FUNCTION__);
     proc_remove(_proc_file);
@@ -141,8 +134,8 @@ static ssize_t _write(struct file *f, const char __user *p, size_t size, loff_t 
     return size;
 }
 
-module_init(_module_init);
-module_exit(_module_exit);
+module_init(_block_init);
+module_exit(_block_exit);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Larva");

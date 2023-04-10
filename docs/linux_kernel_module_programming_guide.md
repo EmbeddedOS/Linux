@@ -883,6 +883,10 @@ $ sudo update-grub
 
 - There is one more point to remember. Some times processes don't want to sleep, they want either to get what they want immediately, or to be told it cannot be done. Such processes use the `O_NONBLOCK` flag when opening the file. The kernel is supposed to respond by returning with the error code `-EAGAIN` from operations which would otherwise block.
 
+### 11.2 Completions
+
+- Sometimes one thing should happen before another within a module having multiple threads. Rather than using `/bin/sleep` commands, the kernel has another way to do this which allows timeouts or interrupts to also happen.
+
 ## 12. Avoiding Collisions and Deadlocks
 
 - If processes running on different CPUs or in different threads try to access the same memory, then it is possible that strange things can happen or your system can lock up. To avoid this various types of mutual exclusion kernel functions are available. These indicate of a section of code is `locked` or `unlocked` so that simultaneous attempts to run it can not happen.
@@ -1070,3 +1074,7 @@ struct class_attribute {
 
 - In `vinput.c` the macro `CLASS_ATTR_WO(export/unexport)` defined in [include/linux/device.h](https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git/tree/include/linux/device.h) will generate the `class_attribute` structures which are named `class_attr_export/unexport`.
 - Then, put them into `vinput_class_attrs` array and the macro `ATTRIBUTE_GROUPS(vinput_class)` will generate the `struct attribute_group vinput_class_group` that should be assigned in `vinput_class`. Finally, call `class_register(&vinput_class)` to create attributes in sysfs.
+
+## 18. Standardizing the interfaces: The Device Model
+
+- Up to this point we have seen all kinds of modules doing all kinds of things, but there was no consistency in their interfaces with the rest of the kernel. To impose some consistency such that there is at minimum a standardized way to start, suspend and resume a device model was added. An example in [device model](../dev/devicemodel.c), and u can use this as a template to add your own suspend, resume or other interface functions.
