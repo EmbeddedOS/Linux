@@ -3,6 +3,7 @@ obj-m += mutex.o
 obj-m += spinlocks.o
 obj-m += rwlock.o
 obj-m += atomic.o
+obj-m += completions.o
 
 PWD := $(CURDIR)
 
