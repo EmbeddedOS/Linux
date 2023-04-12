@@ -1,0 +1,26 @@
+/ {
+	larva-1 {
+		compatible = "larvadev-E1x", "larvadev-A1x";
+		org,size = <512>;
+		org,device-serial-num = "LARVADEV1ABCD123";
+		org,perm = <0x11>; 
+	};
+	larva-2 {
+		compatible = "larvadev-B1x";
+		org,size = <1024>;
+		org,device-serial-num = "LARVADEV1ABCD124";
+		org,perm = <0x11>; 
+	};
+	larva-3 {
+		compatible = "larvadev-C1x";
+		org,size = <256>;
+		org,device-serial-num = "LARVADEV1ABCD125";
+		org,perm = <0x11>; 
+	};
+	larva-4 {
+		compatible = "larvadev-D1x";
+		org,size = <2048>;
+		org,device-serial-num = "LARVADEV1ABCD126";
+		org,perm = <0x11>; 
+	};
+};
