@@ -105,12 +105,19 @@ _______________________________________BUS______________________________________
   - So the kernel doesn't wait for US programs to explicitly release the processor. This means that an infinite loop in an US program CANNOT block the system.
 
 - Kernel space:
+  - In computer operating system design, kernel preemption is a property possessed by some kernels (the cores of operating systems), in which the CPU can be interrupted in the middle of executing kernel code and _assigned other tasks_ (from which it later returns to finish its kernel tasks).
+
   - Until 2.6 kernels, the kernel itself was not preemptible, as soon as one thread has entered the kernel, it could not be preempted to execute an other thread.
     - The processor could be used to execute another thread when a system call was terminated, or when the current thread explicitly asked the scheduler to run another thread using the `schedule()` function.
     - This means that an infinite loop in the kernel code blocked the entire system.
   - However, this absence of preemption in the kernel caused several problems with regard to latency and scalability.
   - So, kernel preemption has been introduced in 2.6 kernels, and one can enable or disable it using the `CONFIG_PREEMPT` option.
     - An infinite loop in the code can no longer block the entire system.
+
+- The __main benefit__ of kernel preemption is that it solves two issues that would otherwise be problematic for monolithic kernels, in which the kernel consists of one large binary. Without kernel preemption, two major issues exist for monolithic and hybrid kernels:
+
+  - A device driver can enter an infinite loop or other unrecoverable state, crashing the whole system.
+  - Some drivers and system calls on monolithic kernels can be slow to execute, and cannot return control of the processor to the scheduler or other program until they complete execution.
 
 ### 2.2. When can kernel preemption happen
 
@@ -135,12 +142,90 @@ _______________________________________BUS______________________________________
 
 ## 3. Reentrancy
 
-- What is a kernel `control path`?
-  - A kernel control path denotes the sequence of instructions executed by the kernel to handle a system call, an exception, or an interrupt.
+- What is a `kernel control path`?
+  - A `kernel control path` denotes the sequence of instructions executed by the kernel to handle a system call, an exception, or an interrupt.
 
 - `Reentrant` kernels
   - Linux kernel is reentrant. This means that several processes may be executing in Kernel Mode at the same time.
   - On uniprocessor systems, only one process can progress, but many can be blocked in Kernel Mode when waiting for the CPU or the completion of some I/O operation.
+  - Example:
+    - After issuing a read to disk on behalf of a process, the kernel lets the disk controller handle it and resumes executing  other processes.
+    - An interrupt notifiers the kernel when the device has satisfied the read, so the former process can resumes executing other processors.
+
+- How do we have reentrancy?
+  - Reentrancy in Linux Kernel:
+    - Reentrant functions: they don't use/modify global data structures.
+    - Non reentrant functions: Modify global data structures but use locking mechanism.
+
+## 4. Synchronization Race condition and critical regions
+
+- Implementing a reentrant kernel requires the use of synchronization.
+- If a kernel control path os suspended while acting on a kernel data structure, no other kernel control path should be allowed to act on the same data structure unless it has been reset to a consistent state.
+
+- Otherwise the interaction of the two control paths could corrupt the stored information.
+
+- Examples:
+  - Suppose a global variable V contains the number of available items of some system resource.
+    Kernel Control path A                     Kernel Control path B
+    |----------------------------------------------------------------|
+    reads the var and value is 1
+                                              reads the same var, and
+                                              value is 1
+                                              increments V
+    increments V
+
+  - Final value of V is 2, instead of 3 which is wrong.
+- When the outcome of a computation depends on how two or more processes are scheduled, the code is incorrect. We say that there is a race condition.
+
+- Any section of code that should be finished by each process that begins it before another process can enter it is called a `critical region`.
+
+## 5. Causes of concurrency
+
+1. Interrupts: An interrupt can occur asynchronously at almost any time; interrupting the currently executing code.
+
+2. Soft-IRQs and tasklets: kernel can raise or schedule a soft-irq or tasklet al almost any time.
+
+3. kernel preemption: because the kernel is preemptive, one task in the kernel can preempt another.
+
+4. Sleeping and synchronization with user space: task in the kernel can sleep and thus invoke the scheduler, resulting in running of a new process.
+
+5. Symmetrical multiprocessor: two or more processors can execute kernel code at exactly the same time.
+
+## 6. Solutions for concurrency
+
+- Simple solutions:
+  - Kernel preemption Disabling:
+
+    ```C
+
+    // disabling kernel preemption.
+    // critical region start.
+
+    // do some thing ...
+
+    // critical region end.
+
+    // enabling kernel preemption.
+    ```
+
+    - Problem: On multiprocessor, two kernel paths running on different CPUs can concurrently access the same global data.
+  - Hardware interrupt Disabling:
+
+    ```C
+
+    // disabling Hardware interrupt.
+    // critical region start.
+
+    // do some thing ...
+
+    // critical region end.
+
+    // enabling Hardware interrupt.
+    ```
+
+    - Problem:
+      - If the critical region is large, interrupts can remain disabled for a relatively long time, potentially causing all hardware activities to freeze.
+      - On a multiprocessor system, disabling interrupts on the local CPU is not sufficient, and other synchronization techniques must be used.
 
 ## Per CPU variable
 
