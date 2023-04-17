@@ -301,3 +301,53 @@ void *alloc_percpu(type); /* Macro.*/
 void *__alloc_percpu(size_t size, size_t align);
 void free_percpu(const void *);
 ```
+
+## Semaphore
+
+- semaphores
+  - Semaphores in Linux are sleeping locks
+
+- what happens when the semaphores lock is unavailable?
+  - The semaphore places the task onto a wait queue and puts the task to sleep.
+  - The processor is then free to execute other code.
+
+- What happens after the semaphore becomes available
+  - One of the tasks on the wait queue is awakened so that it can then acquire the semaphore.
+
+- Implementation
+  - A semaphore is a single integer value combined with a pair of functions that are typically called P and V (Dutch words).
+  - `P()` -> Probe-ren (test).
+  - `V()` -> Verhogen (increment).
+  - Entering critical section:
+    - A process wishing to enter a critical section will call `P()` on the relevant semaphore.
+      - If the semaphore's value is greater than zero, that value is decremented by one and the process continues.
+      - If, instead, the semaphore's value is 0 (or less), the process must wait until somebody else releases the semaphore.
+  - Exiting critical section:
+    - Accomplished by calling `V()`.
+    - This function increments the value of the semaphore and, if necessary, wakes up processes that are waiting.
+
+### Types of semaphore
+
+- Types of semaphore
+  - Spin locks allow only one task to hold the lock at a time.
+  - With semaphores, number of tasks to hold the lock at a time can be specified while initializing/declaring semaphore.
+  - This value is called as usage count or simply count.
+    - Count = 1 --> Binary semaphore, used for mutual exclusion.
+    - Count . 1 --> Counting semaphore.
+
+### Can I use counting semaphores in the critical sections?
+
+- I think NOT, because only one process has to be in the critical section.
+
+- Counting semaphores are not used to enforce mutual exclusion because they enable multiple threads of execution in the critical region at once.
+
+- instead, they are used to enforce limits in certain code.
+
+- They are not used much in the kernel.
+
+### spin lock vs semaphore
+
+- Which one to choose for critical region: spin lock vs semaphore?
+  - Sleep: semaphore is the only option.
+  - Lock hold time: semaphores are good for longer lock hold times, spin locks are useful when the lock hold time is small.
+  - Scheduling latency: As semaphores do not disable kernel preemption, scheduling latency is better when compared to spin locks.
