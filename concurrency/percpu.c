@@ -22,9 +22,12 @@ static int _release(struct inode * inode, struct file *f);
 static ssize_t _read(struct file *f, char __user *p, size_t size, loff_t *offset);
 static ssize_t _write(struct file *f, const char __user *p, size_t size, loff_t *offset);
 
+static void _test_per_cpu_runtime(void);
 
 static struct proc_dir_entry *_proc_file;
 DECLARE_PER_CPU(int, _per_cpu_var) = 0;
+
+static int *_dynamic_per_cpu_var;
 
 #ifdef HAVE_PROC_OPS
 static struct proc_ops _fops = {
@@ -71,6 +74,8 @@ static int __init _module_init(void)
     proc_set_user(_proc_file, GLOBAL_ROOT_UID, GLOBAL_ROOT_GID);
 
     pr_info("/proc/%s created.\n", PROCFS_NAME);
+
+    _test_per_cpu_runtime();
 
 out:
     return OK;
@@ -123,6 +128,9 @@ static int _release(struct inode * inode, struct file *f)
 
 static ssize_t _read(struct file *f, char __user *p, size_t size, loff_t *offset)
 {
+    pr_info("%s(): invoked.\n", __FUNCTION__);
+
+
     return 0;
 }
 
@@ -131,6 +139,23 @@ static ssize_t _write(struct file *f, const char __user *p, size_t size, loff_t 
     pr_info("%s(): invoked.\n", __FUNCTION__);
 
     return 0;
+}
+
+static void _test_per_cpu_runtime(void)
+{
+
+    // Make runtime percpu variable.
+    _dynamic_per_cpu_var = alloc_percpu(int);
+    *per_cpu_ptr(_dynamic_per_cpu_var, get_cpu()) = 10;
+    put_cpu();
+
+    int i = 0;
+    for_each_online_cpu(i)
+    {
+        pr_info("%s(): Value: %d on cpu: %d.\n", __FUNCTION__, *per_cpu_ptr(_dynamic_per_cpu_var, i), i);
+    }
+
+    free_percpu(_dynamic_per_cpu_var);
 }
 
 module_init(_module_init);

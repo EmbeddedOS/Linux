@@ -292,3 +292,12 @@ per_cpu(variable, cpu_id);
 
 - If u write code that involves processors reaching into each other's per-cpu variables, u, of course, have to implement a locking scheme that makes that access safe.
 
+### per cpu at runtime
+
+- dynamically allocated per-cpu variables are also possible
+
+```C
+void *alloc_percpu(type); /* Macro.*/
+void *__alloc_percpu(size_t size, size_t align);
+void free_percpu(const void *);
+```
