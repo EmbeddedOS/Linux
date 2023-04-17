@@ -142,11 +142,15 @@ _______________________________________BUS______________________________________
 
 ## 3. Reentrancy
 
+- Kernel functions are executed following a request that may be issued in two possible ways:
+  - A Process executing in user mode causes an exception, for instance by executing an int 0x80 assembly language instruction.
+  - An external device sends a signal to a Programmable Interrupt Controller by using an IRQ line, and the corresponding interrupt is enabled.
+
 - What is a `kernel control path`?
   - A `kernel control path` denotes the sequence of instructions executed by the kernel to handle a system call, an exception, or an interrupt.
 
 - `Reentrant` kernels
-  - Linux kernel is reentrant. This means that several processes may be executing in Kernel Mode at the same time.
+  - Linux kernel is reentrant. This means that several processes (kernel threads) may be executing in Kernel Mode at the same time.
   - On uniprocessor systems, only one process can progress, but many can be blocked in Kernel Mode when waiting for the CPU or the completion of some I/O operation.
   - Example:
     - After issuing a read to disk on behalf of a process, the kernel lets the disk controller handle it and resumes executing  other processes.
@@ -227,6 +231,20 @@ _______________________________________BUS______________________________________
       - If the critical region is large, interrupts can remain disabled for a relatively long time, potentially causing all hardware activities to freeze.
       - On a multiprocessor system, disabling interrupts on the local CPU is not sufficient, and other synchronization techniques must be used.
 
+## Find out which processor is running kernel control path
+
+- `smp_processor_id()` gives u the current processor number on which kernel is running.
+
+## Find out maximum number of processors in kernel
+
+```C
+// using global macro.
+int nr_cpu = NR_CPUS;
+
+// Or get exactly online CPU.
+int cpu = num_online_cpus();
+```
+
 ## Per CPU variable
 
 - The simplest and most efficient synchronization technique consists of declaring kernel variables as per-CPU variables.
@@ -234,3 +252,43 @@ _______________________________________BUS______________________________________
 - A CPU should not access the elements of the array corresponding to other CPU.
 - IT can freely read and modify its own element without fear of race conditions, because it is the only entitled to do so.
 - The elements of the per-CPU array are aligned in main memory so that each data structure falls on a different line of the hardware cache.
+
+### per-cpu interface
+
+- The 2.6 kernel introduced a new interface, known as per-cpu, for creating and manipulating per-CPU data.
+
+- Creation and manipulation of per-cpu data is simplified with this new approach.
+- This new interface, however, grew out of the needs for a simpler and more powerful method for manipulating per-CPU data on large symmetrical multiprocessing computers.
+
+```C
+#include <linux/percpu.h>
+
+// DEFINE_PER_CPU(type, name);
+
+DEFINE_PER_CPU(int, x);
+```
+
+- This creates an interface of a variable of type `int`, named `x`, for each processor on the system.
+
+- If u need a declaration of the variable elsewhere, to avoid compile warnings, the following macro is your friend:
+
+```C
+#include <linux/percpu.h>
+
+DECLARE_PER_CPU(int, x);
+```
+
+- You can manipulation the variables with the `get_cpu_var()` and `put_cpu_var()` routines.
+
+- A call to `get_cpu_var()` returns an lvalue for the given variable on the current processor. It also disables preemption, which `put_cpu_var()` correspondingly enables.
+
+### Access per cpu variable on another processor
+
+- U can access another processor's copy of the variable with:
+
+```C
+per_cpu(variable, cpu_id);
+```
+
+- If u write code that involves processors reaching into each other's per-cpu variables, u, of course, have to implement a locking scheme that makes that access safe.
+

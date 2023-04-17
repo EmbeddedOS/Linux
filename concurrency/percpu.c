@@ -8,6 +8,7 @@
 #include <linux/proc_fs.h>
 #include <linux/version.h>
 #include <linux/uaccess.h>
+#include <linux/percpu.h>
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 6, 0)
 #define HAVE_PROC_OPS
@@ -16,8 +17,6 @@
 #define PROCFS_NAME "percpu-dev"
 #define OK 0
 
-unsigned int percpu_data [NR_CPUS] = {0};
-
 static int _open(struct inode * inode, struct file *f);
 static int _release(struct inode * inode, struct file *f);
 static ssize_t _read(struct file *f, char __user *p, size_t size, loff_t *offset);
@@ -25,6 +24,7 @@ static ssize_t _write(struct file *f, const char __user *p, size_t size, loff_t 
 
 
 static struct proc_dir_entry *_proc_file;
+DECLARE_PER_CPU(int, _per_cpu_var) = 0;
 
 #ifdef HAVE_PROC_OPS
 static struct proc_ops _fops = {
@@ -85,15 +85,36 @@ static void __exit _module_exit(void)
 static int _open(struct inode * inode, struct file *f)
 {
     pr_info("%s(): invoked.\n", __FUNCTION__);
-
     try_module_get(THIS_MODULE);
 
+    /* get_cpu_var() return lvalue of the per cpu variable.
+     */
+    pr_info("%s(): value of per cpu variable is %d on cpu %d.\n", 
+                    __FUNCTION__,
+                    get_cpu_var(_per_cpu_var)++,
+                    smp_processor_id());
+
+    put_cpu_var(_per_cpu_var);
     return OK;
 }
 
 static int _release(struct inode * inode, struct file *f)
 {
+    int i = 0;
+
     pr_info("%s(): invoked.\n", __FUNCTION__);
+
+    for (i = 0; i < num_online_cpus(); i++)
+    {
+        pr_info("%s(): Value: %d on cpu: %d.\n", __FUNCTION__, per_cpu(_per_cpu_var, i), i);
+    }
+
+    // Or similar with for_each_online_cpu() macro
+    i = 0;
+    for_each_online_cpu(i)
+    {
+        pr_info("%s(): Value: %d on cpu: %d.\n", __FUNCTION__, per_cpu(_per_cpu_var, i), i);
+    }
 
     module_put(THIS_MODULE);
 
@@ -102,45 +123,14 @@ static int _release(struct inode * inode, struct file *f)
 
 static ssize_t _read(struct file *f, char __user *p, size_t size, loff_t *offset)
 {
-    size_t res = 0;
-
-
-    pr_info("%s(): invoked.\n", __FUNCTION__);
-
-    char msg[20] = "I am Larva!\n";
-    int msg_len = sizeof(msg);
-
-    if (*offset >= msg_len || copy_to_user(p, msg, msg_len))
-    {
-        *offset = 0;
-    } else
-    {
-        *offset += msg_len;
-        res = msg_len;
-        pr_info("read: %s", f->f_path.dentry->d_name.name);
-    }
-
-    return res;
+    return 0;
 }
 
 static ssize_t _write(struct file *f, const char __user *p, size_t size, loff_t *offset)
 {
     pr_info("%s(): invoked.\n", __FUNCTION__);
 
-    char msg[size+1];
-    
-    if (copy_from_user(msg, p, size))
-    {
-        return -EFAULT;
-    }
-
-    msg[size] = '\0';
-
-    pr_info("User written: %s.\n", msg);
-
-    *offset += size;
-
-    return size;
+    return 0;
 }
 
 module_init(_module_init);
