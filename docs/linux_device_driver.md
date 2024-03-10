@@ -63,7 +63,7 @@
 - But in kernel, is linked only to the kernel, no libraries to link.
 - Most of the relevant headers live in `include/linux` and `include/asm`.
 
-### 2.1.1. User space and kernel space
+#### 2.1.1. User space and kernel space
 
 - All current processors have at least two protection levels, and some, like the x86 family, have more levels; when several levels exist, the highest and lowest levels are used.
 
@@ -73,7 +73,7 @@
 
 - **The role of a module is to extend kernel functionality**; modularized code runs in kernel space. Usually a driver performs both the tasks outlined previously: some functions in the module are executed as part of system calls, and some are in charge of interrupt handling.
 
-### 2.1.2. Concurrency in the kernel
+#### 2.1.2. Concurrency in the kernel
 
 - Even the simplest kernel modules must be written with the idea that many things can be happening at once.
 
@@ -89,4 +89,239 @@
 
 - *A common mistake made by driver programmers is to assume that concurrency is not a problem as long as a particular segment of code does not go to sleep*. If you do not write your code with concurrency in mind, it will be subject to catastrophic failures that can be exceedingly difficult to debug.
 
-### 2.1.3. Current process
+#### 2.1.3. Current process
+
+- Although kernel modules, don't execute sequentially as applications do, *most actions* performed by the kernel are done on behalf of a specific process.
+- Kernel code can refer to the current process by accessing the global item `current`, defined in `asm/current.h`, which yields a pointer to `struct task_struct`.
+- For example for x86 (`arch/x86/include/asm/current.h`):
+
+    ```C
+    struct task_struct;
+
+    struct pcpu_hot {
+        union {
+            struct {
+                struct task_struct    *current_task;
+                int            preempt_count;
+                int            cpu_number;
+    #ifdef CONFIG_CALL_DEPTH_TRACKING
+                u64            call_depth;
+    #endif
+                unsigned long        top_of_stack;
+                void            *hardirq_stack_ptr;
+                u16            softirq_pending;
+    #ifdef CONFIG_X86_64
+                bool            hardirq_stack_inuse;
+    #else
+                void            *softirq_stack_ptr;
+    #endif
+            };
+            u8    pad[64];
+        };
+    };
+    static_assert(sizeof(struct pcpu_hot) == 64);
+
+    DECLARE_PER_CPU_ALIGNED(struct pcpu_hot, pcpu_hot);
+
+    static __always_inline struct task_struct *get_current(void)
+    {
+        return this_cpu_read_stable(pcpu_hot.current_task);
+    }
+
+    #define current get_current()
+    ```
+
+- The `current` pointer refers to the process that is currently executing.
+- Actually, `current` is not truly a global variable. The need to support SMP systems forced the kernel developers to develop a mechanism that finds the current process on the relevant CPU.
+- This mechanism must also be fast, since references to `current` happen frequently. The result is an architecture-dependent mechanism that, usually, hides a pointer to the `task_struct` structure on the kernel stack.
+
+#### 2.1.4. A Few Other Details
+
+- 1. Application are laid out in virtual memory with a very large stack area. The kernel, instead, has a very small stack; it can be as small as a single, 4096 byte page. Your functions must share that stack with the entire kernel-space call chain. Thus, **It is never a good idea to declare large automatically variables**; If you need larger structures, you should allocate them dynamically at call time.
+
+- 2. Often, as you look at the kernel API, you will encounter function names starting with a double underscore `__`. Functions so marked are generally a low-level component of the interface and should be used with caution.
+  - Essentially, the double underscore says to the programmer: `If you call this function, be sure you know what you are doing.`
+
+- 3. Kernel code cannot do floating point arithmetic. Enabling floating point would require that the kernel save and restore the floating point processor's state on each entry to, and exit from, kernel space--at least, on some architectures. `Given that there really is no need for floating point in kernel code`.
+
+### 2.2. Compiling and Loading
+
+- The kernel build system is a complex beast, and we just look at a tiny piece of it.
+
+#### 2.2.1. Loading and Unloading Modules
+
+- `insmod` loads the module code and data into the kernel, which, in turn, performs a function similar to that of `ld`, in that it links any unresolved symbol in the module to the symbol table of the kernel.
+
+- 1. The function `sys_init_module` allocates kernel memory to hold a module (this memory is allocated with `vmalloc`).
+- 2. Copies the module text into that memory region.
+- 3. Resolves kernel references in the module via the kernel symbol table.
+- 4. And calls the module's initialization function to get everything going.
+
+##### 2.2.1.1. `modprobe`
+
+- This utility, like insmod, load a module into the kernel. It differs in that it will look at the module to be loaded to see whether it references any symbols that are not currently defined in the kernel. If any such references are found, `modprobe` looks for other modules in the current module search path hat define the relevant symbols.
+- When the `modprobe` finds those module (which are needed by module being loaded), it loads them into the kernel as well.
+
+- If you use `insmod` in this case, `unresolved symbols` message left.
+
+#### 2.2.2. Version dependency
+
+- You can use some macros to to something version dependency:
+
+- 1. `LINUX_VERSION_CODE`: binary representation of the kernel version.
+- 2. `UTS_RELEASE`: a string describing the version of this kernel tree.
+- 3. `KERNEL_VERSION(major,minor,release)`: an integer version code from individual numbers that build up a version number.
+
+### 2.3. The Kernel Symbol Table
+
+- The table contains the addresses of global kernel items -- functions and variables -- that are needed to implement modularized drivers.
+- When a module is loaded, any symbol exported by the module becomes part of the kernel symbol table.
+
+- New modules can use symbols exported by your module, and can *stack* new modules on top of other modules. For example:
+  - 1. Each input USB device module stacks on the `usbcore` and `input` modules.
+
+- **Module stacking** is useful in complex project. If a new abstraction is implemented in the form of a device driver, it might offer a plug for hardware specific implementations. For example:
+
+```text
+     __________
+    |  __lp__  |
+     ||      || Port sharing and device registration.
+     ||     _\/______________
+     ||    |_  _parport___  _|
+     ||      ||           || Low-level device operations.
+     ||      ||          _\/____________
+     ||      ||         |__partport_pc__|
+     ||      ||                ||
+     \/______\/________________\/_________
+    |           Kernel API                |
+    |(Message print, driver registration, |
+    |port allocation, etc.)               |
+    |_____________________________________|
+```
+
+- When using stacked modules, it is helpful to be aware of the `modprobe` utility.
+- Using stacking to split modules into multiple layers can help reduce development time by simplifying each layer.
+
+- If your module needs to export symbols for other modules to use, the following macros should be used:
+
+    ```C
+    EXPORT_SYMBOL(name);
+    EXPORT_SYMBOL_GPL(name);
+    ```
+
+### 2.3. Initialization and shutdown
+
+- Initialization functions should be declared `static`, since they are not meant to be visible outside the specific file.
+- `init` token is a hint to the kernel that the given function is used only at initialization time. The module loader drops the initialization function after the module is loaded, making its memory available for other uses.
+
+#### 2.3.1. The cleanup function
+
+- The `exit` modifier marks the code as being for module unload only (by causing the compiler to place it in a special ELF section). If your module is built directly into the kernel, or if your kernel is configured to disallow the unloading of modules, functions marked `exit` are simply discarded.
+
+#### 2.3.2. Error Handling During Initialization
+
+- One thing you must always bear in mind when registering facilities with the kernel is that the registration could fail. Even the simplest action often requires memory allocation, and the required memory may not be available. So **module code must always check return values**, and be sure that the requested operations have actually succeeded.
+
+```C
+int init my_init_function(void)
+{
+    int err;
+    /* registration takes a pointer and a name */
+    err = register_this(ptr1, "skull");
+    if (err) goto fail_this;
+    err = register_that(ptr2, "skull");
+    if (err) goto fail_that;
+    err = register_those(ptr3, "skull");
+    if (err) goto fail_those;
+
+    return 0; /* success */
+    fail_those: unregister_that(ptr2, "skull");
+    fail_that: unregister_this(ptr1, "skull");
+    fail_this: return err; /* propagate the error */
+}
+``
+
+- Or your initialization is more complex, you can define the clean function like this:
+
+```C
+struct something *item1;
+struct somethingelse *item2;
+int stuff_ok;
+
+void my_cleanup(void)
+{
+    if (item1)
+        release_thing(item1);
+    if (item2)
+        release_thing2(item2);
+    if (stuff_ok)
+        unregister_stuff( );
+    return;
+}
+
+int init my_init(void)
+{
+    int err = -ENOMEM;
+    item1 = allocate_thing(arguments);
+    item2 = allocate_thing2(arguments2);
+    if (!item2 || !item2)
+        goto fail;
+    err = register_stuff(item1, item2);
+    if (!err)
+        stuff_ok = 1;
+    else
+        goto fail;
+    return 0; /* success */
+    fail:
+        my_cleanup( );
+        return err;
+}
+```
+
+### 2.4. Doing it in User space
+
+- There are some arguments in favor of user-space programming, and sometimes writing a so-called `user-space device driver` is a wise alternative to kernel hacking.
+
+- The advantages of user-space device driver:
+  - 1. Full C library can be linked in.
+  - 2. Conventional debugger on the driver code.
+  - 3. If a user-space driver hangs, you can simply kill it.
+  - 4. User memory is swappable, unlike kernel memory.
+  - 5. A well-designed driver program can still, like kernel-space drivers, allow concurrent access to a device.
+
+- For example, USB drivers can be written for user space; see the `libusb` project.
+
+- But the user-space approach to device driving has a number of drawbacks. Some important are:
+  - 1. Interrupts are not available in user space. There are workarounds for this limitation of some platforms.
+  - 2. Direct access to memory is possible only by `mmap` `devmem`, and only a privileged user can do.
+  - 3. Access to I/O ports is available only after calling `ioperm` or `iopl`.
+  - 4. Response time is slower, because a context switch is required to transfer information or actions between client and the hardware.
+  - 5. If the driver has been swapped to disk, response time is unacceptable long.
+  - 6. Some important devices can't be handled in user space: network interfaces and block devices.
+
+## 3. Char Drivers
+
+- `scull`: Simple Character Utility for Loading Localities. `scull` is a char driver that acts on a memory area as though it were a device.
+  - The advantage of scull is that it isn't hardware dependent. `scull` jut acts on some memory, allocated from the kernel.
+
+### 3.1. The design of `scull`
+
+- The first step of driver writing is defining the capabilities (the mechanism) the driver will offer to user programs.
+- To make `scull` useful as a template for writing real drivers for real devices, we'll show you how to implement several device abstractions on top of the computer memory, each with a different personality.
+
+- The `scull` source implements the following devices. Each kind of device implemented by the module is referred to as a *type*.
+  - `scull0` to `scull3`:
+    - Four devices, each consisting of a memory area that is both global and persistent.
+      - **Global** means if device is opened multiple times, the data contained within the device is shared by all the file descriptors.
+      - **Persistent** means that if the device is closed and reopened, data isn't lost.
+    - This device can be fun to work with, because it can be accessed and tested using conventional commands: `cp`, `cat`, shell IO redirection.
+  - `scullpipe0` to `scullpipe3`:
+    - Four FIFO devices, which act like pipes. One process reads and another writes.
+  - `scullsingle`
+  - `scullpriv`
+  - `sculluid`
+  - `scullwuid`
+
+- Each of the `scull` devices demonstrates different features of a driver and presents different difficulties.
+
+### 3.2. Major and Minor
