@@ -325,3 +325,72 @@ int init my_init(void)
 - Each of the `scull` devices demonstrates different features of a driver and presents different difficulties.
 
 ### 3.2. Major and Minor
+
+- Char devices are accessed through name in the filesystem. Those names are called special files or device files or simply nodes of the file system tree; they are conventionally located in the `/dev` directory.
+
+- For example `ls -l`:
+
+```text
+crw-rw-rw-1 root root 1, 3 Apr 11 2002 null
+crw------- 1 root root 10, 1 Apr 11 2002 psaux
+crw------- 1 root root 4, 1 Oct 28 03:04 tty1
+crw-rw-rw-1 root tty 4, 64 Apr 11 2002 ttys0
+crw-rw---- 1 root uucp 4, 65 Apr 11 2002 ttyS1
+crw--w---- 1 vcsa tty 7, 1 Apr 11 2002 vcs1
+crw--w---- 1 vcsa tty 7, 129 Apr 11 2002 vcsa1
+crw-rw-rw-1 root root 1, 5 Apr 11 2002 zero
+```
+
+- `c` means character device file. `b` block device file.
+- You can see 1, 10, 4, 7 are **MAJOR** numbers and 3, 1, 64, 65, 129, 5 are **MINOR** numbers.
+
+- Traditionally, the major number identifies the driver associated with the device.
+  - For example, `devnull` and `devzero` are both managed by driver 1, whereas `virtual console` and `serial terminals` are managed by driver 4;
+
+- The minor number is used by the kernel to determine exactly which device is being referred to. Kernel itself knows almost nothing about minor numbers beyond the fact that they refer to devices implemented by your driver.
+
+#### 3.2.1. The Internal Representation of Device Numbers
+
+- Within the kernel, the `dev_t` type is used to hold device numbers -- both the major and minor parts.
+- To obtain the major or minor parts of a `dev_t`, use:
+
+```C
+MAJOR(dev_t dev);
+MINOR(dev_t dev);
+```
+
+- Make `dev_t` struct from numbers:
+
+```C
+MKDEV(int major, int minor);
+```
+
+#### 3.2.2. Allocating and Freeing Device Numbers
+
+- One of the first things your driver will need to do when setting up a char device is to obtain one or more device numbers to work with. The necessary function:
+
+    ```C
+    int register_chrdev_region(dev_t first, unsigned int count, char *name);
+    ```
+
+  - `first` is the beginning device number of the range you would like to allocate.
+  - `count` is the total number of contiguous device numbers you are requesting.
+  - `name` name of the device.
+
+- The `register_chrdev_region` works well if you know ahead of time exactly which device numbers you want.
+
+- Often, however, you will not know which major numbers your device will use; there is a constant effort within the Kernel community to move over to the use of dynamically-allocated device numbers. The kernel will happily allocate a major number for you on the fly, but you must request this allocation by using a different function:
+
+    ```C
+    int alloc_chrdev_region(dev_t *dev, unsigned int firstminor, unsigned int count, char *name);
+    ```
+
+  - `dev` is output parameter that will, on successful completion, hold the first number in your allocated range.
+
+- You should free them when they are no longer in use:
+
+```C
+void unregister_chrdev_region(dev_t first, unsigned int count);
+```
+
+### 3.2.3. Dynamic Allocation of Major Numbers
