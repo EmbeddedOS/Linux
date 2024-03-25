@@ -394,3 +394,97 @@ void unregister_chrdev_region(dev_t first, unsigned int count);
 ```
 
 ### 3.2.3. Dynamic Allocation of Major Numbers
+
+- Some major device numbers are statically assigned to the most common devices. A list of those devices can be found in `Documentation/devices.txt`.
+
+- So as a driver writer, you have a choice: you can simply pick a number that appears to unused, you can allocate major numbers in a dynamic manner.
+
+- We recommend use dynamic allocation to obtain your major device number. In other words, your driver should almost certainly be using `alloc_chrdev_region` rather than `register_chrdev_region`.
+
+- Read `procdevices` file to see major numbers of current drivers:
+
+```text
+Character devices:
+    1 mem
+    2 pty
+    3 ttyp
+    4 ttyS
+    6 lp
+    7 vcs
+    10 misc
+    13 input
+    14 sound
+    21 sg
+    180 usb
+Block devices:
+    2 fd
+    8 sd
+    11 sr
+    65 sd
+    66 sd
+```
+
+- Script to create 4 scull devices [scull_load](https://github.com/starpos/scull/blob/master/scull/scull_load):
+
+```bash
+#!binsh
+module="scull"
+device="scull"
+mode="664"
+
+# invoke insmod with all arguments we got
+# and use a pathname, as newer modutils don't look in . by default
+sbininsmod ./$module.ko $* || exit 1
+
+# remove stale nodes
+rm -f dev${device}[0-3]
+major=$(awk "\\$2= =\"$module\" {print \\$1}" procdevices)
+
+mknod dev${device}0 c $major 0
+mknod dev${device}1 c $major 1
+mknod dev${device}2 c $major 2
+mknod dev${device}3 c $major 3
+
+# give appropriate group/permissions, and change the group.
+# Not all distributions have staff, some have "wheel" instead.
+group="staff"
+grep -q '^staff:' etcgroup || group="wheel"
+
+chgrp $group dev${device}[0-3]
+chmod $mode dev${device}[0-3]
+```
+
+- `mknod` was originally used to create the character and block devices that populate `/dev/`.
+- The script can be adapted for another driver by redefining the variables and adjusting the `mknod` lines.
+
+- A [scull_unload](https://github.com/starpos/scull/blob/master/scull/scull_unload) script is also available to clean up the `/dev` directory and remove module.
+
+- The best way to assign major numbers, is by defaulting to dynamic allocation while leave yourself the option of specifying the major number at load time, or even compile time.
+  - The `scull` work in this way. For example, if you init scull_major with `0` we use the dynamic allocation:
+
+    ```C
+    if (scull_major) {
+        dev = MKDEV(scull_major, scull_minor);
+        result = register_chrdev_region(dev, scull_nr_devs, "scull");
+    } else {
+        result = alloc_chrdev_region(&dev, scull_minor, scull_nr_devs,
+        "scull");
+        scull_major = MAJOR(dev);
+    }
+    if (result < 0) {
+        printk(KERN_WARNING "scull: can't get major %d\n", scull_major);
+        return result;
+    }
+    ```
+
+### 3.2.4. Some Important Data structures
+
+- Most if the fundamental driver operations involve three important kernel data structures:
+  - 1. `file_operations`.
+  - 2. `file`.
+  - 3. `inode`.
+
+#### 3.2.4.1. File Operations
+
+- 1. `struct module *owner`: A pointer to the module that owns the structure. It's used to prevent the module being unloaded while its operations are in use.
+- 2. `loff_t (*llseek)(struct file *, loff_t, int);`: The `llseek` method is used to change the current read/write position in a file and the new position i returned as 
