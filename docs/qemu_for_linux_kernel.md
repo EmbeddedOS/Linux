@@ -170,7 +170,7 @@ make -j4
 
     ```text
     ## addition for CUSTOM PCI DEVICE
-    config CPCIDEV
+    config C_PCI_DEV
         bool
         default y if TEST_DEVICES
         depends on PCI && MSI_NONBROKEN
@@ -179,12 +179,21 @@ make -j4
   - Add to build system `hw/misc/meson.build`:
 
     ```text
-    softmmu_ss.add(when: 'CONFIG_CPCIDEV', if_true: files('custom_pci_dev.c'))
+    system_ss.add(when: 'CONFIG_C_PCI_DEV', if_true: files('custom_pci_dev.c'))
     ```
 
 - 2. We also to need our device file `hw/misc/custom_pci_dev.c` compiled and integrated into the qemu build.
 
+    ```bash
+    cp custom_pci_dev.c qemu/hw/misc/custom_pci_dev.c
+    ```
+
 - 3. Rebuild QEMU.
+- 4. Check device is exist:
+
+    ```bash
+    ./qemu-system-arm -device help | grep 'c_pci_dev'
+    ```
 
 ### 3.2. About our device
 
@@ -192,3 +201,4 @@ make -j4
   - `op1` and `op2`: holding integer arguments.
   - `opcode`: which determines the operation to occur with `op1` and `op2`.
   - `result`: holds the result of calculation.
+  - `error`: error code.

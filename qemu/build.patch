@@ -1,0 +1,27 @@
+diff --git a/hw/misc/Kconfig b/hw/misc/Kconfig
+index 1e08785b83..34488e4b41 100644
+--- a/hw/misc/Kconfig
++++ b/hw/misc/Kconfig
+@@ -25,6 +25,11 @@ config PCI_TESTDEV
+     default y if TEST_DEVICES
+     depends on PCI
+ 
++config C_PCI_DEV
++    bool
++    default y if TEST_DEVICES
++    depends on PCI && MSI_NONBROKEN
++
+ config EDU
+     bool
+     default y if TEST_DEVICES
+diff --git a/hw/misc/meson.build b/hw/misc/meson.build
+index 86596a3888..4a671aad45 100644
+--- a/hw/misc/meson.build
++++ b/hw/misc/meson.build
+@@ -1,5 +1,6 @@
+ system_ss.add(when: 'CONFIG_APPLESMC', if_true: files('applesmc.c'))
+ system_ss.add(when: 'CONFIG_EDU', if_true: files('edu.c'))
++system_ss.add(when: 'CONFIG_C_PCI_DEV', if_true: files('custom_pci_dev.c'))
+ system_ss.add(when: 'CONFIG_FW_CFG_DMA', if_true: files('vmcoreinfo.c'))
+ system_ss.add(when: 'CONFIG_ISA_DEBUG', if_true: files('debugexit.c'))
+ system_ss.add(when: 'CONFIG_ISA_TESTDEV', if_true: files('pc-testdev.c'))

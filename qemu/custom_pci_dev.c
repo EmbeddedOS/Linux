@@ -9,9 +9,19 @@
 #include "qemu/module.h"
 #include "qapi/visitor.h"
 
-#define TYPE_PCI_CUSTOM_DEVICE  "_pci_dev"
+#define TYPE_PCI_CUSTOM_DEVICE  "c_pci_dev"
 #define DEVICE_ID               0xABCD;
 #define DEVICE_REVISION         0x10;
+#define REG_OP1                 0x10
+#define REG_OP2                 0x14
+#define REG_OPCODE              0x18
+#define REG_RESULT              0x20
+#define REG_ERROR               0x24
+#define OPCODE_ADD              0x00
+#define OPCODE_MUL              0x01
+#define OPCODE_DIV              0x02
+#define OPCODE_SUB              0x03
+
 
 typedef struct _pci_device_object _pci_device_object;
 
@@ -26,7 +36,7 @@ typedef struct _pci_device_object _pci_device_object;
  * 
  * This macro will provide the instance type cast functions for a QOM type.
  */
-DECLARE_INSTANCE_CHECKER(_pci_device_object, _PCI_DEV, TYPE_PCI_CUSTOM_DEVICE);
+DECLARE_INSTANCE_CHECKER(_pci_device_object, C_PCI_DEV, TYPE_PCI_CUSTOM_DEVICE);
 
 /**
  * @brief This struct defining/descring the state of our pci device.
@@ -46,7 +56,51 @@ static uint64_t _pci_dev_mmio_read(void *opaque, hwaddr addr, unsigned size)
 {
     _pci_device_object *_pci_dev = (_pci_device_object *)opaque;
     uint64_t res = ~0ULL;
+    printf("_PCI_DEV: _pci_dev_mmio_read() addr 0x%lx\n", addr);
+    printf("_PCI_DEV: _pci_dev_mmio_read() size 0x%x\n", size);
 
+    switch (addr)
+    {
+    case 0x00:
+        printf("BAR\n");
+        break;
+    case REG_OP1:
+        res = _pci_dev->_operand_1;
+        break;
+    case REG_OP2:
+        res = _pci_dev->_operand_2;
+        break;
+    case REG_OPCODE:
+        res = _pci_dev->_opcode;
+        break;
+    case REG_RESULT:
+        switch (_pci_dev->_opcode) {
+            case OPCODE_ADD:
+                _pci_dev->_result = _pci_dev->_operand_1 + _pci_dev->_operand_2;
+                break;
+            case OPCODE_SUB:
+                _pci_dev->_result = _pci_dev->_operand_1 - _pci_dev->_operand_2;
+                break;
+            case OPCODE_DIV:
+                _pci_dev->_result = _pci_dev->_operand_1 / _pci_dev->_operand_2;
+                break;
+            case OPCODE_MUL:
+                _pci_dev->_result = _pci_dev->_operand_1 * _pci_dev->_operand_2;
+                break;
+            default:
+                _pci_dev->_result = 0x00;
+                _pci_dev->_error = 0x01;
+                break;
+        }
+        res = _pci_dev->_result;
+        break;
+    case REG_ERROR:
+        res = _pci_dev->_error;
+        break;
+    default:
+
+        break;
+    }
 
     return res;
 }
@@ -55,6 +109,21 @@ static void _pci_dev_mmio_write(void *opaque, hwaddr addr, uint64_t val,
                 unsigned size)
 {
     _pci_device_object *_pci_dev = (_pci_device_object *)opaque;
+    printf("_PCI_DEV: _pci_dev_mmio_write() addr 0x%lx\n", addr);
+    printf("_PCI_DEV: _pci_dev_mmio_write() val 0x%lx\n", val);
+
+    switch (addr)
+    {
+    case REG_OP1:
+        _pci_dev->_operand_1 = val;
+        break;
+    case REG_OP2:
+        _pci_dev->_operand_2 = val;
+        break;
+    case REG_OPCODE:
+        _pci_dev->_opcode = val;
+        break;
+    }
 }
 
 /**
@@ -84,9 +153,9 @@ static const MemoryRegionOps _pci_dev_mmio_ops = {
 
 };
 
-static void _pci_dev_realize(DeviceState *dev, Error **errp)
+static void _pci_dev_realize(PCIDevice *dev, Error **errp)
 {
-    _pci_device_object *_pci_dev = CPCIDEV(dev);
+    _pci_device_object *_pci_dev = C_PCI_DEV(dev);
     uint8_t *pci_conf = dev->config;
 
     pci_config_set_interrupt_pin(pci_conf, 1);
