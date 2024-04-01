@@ -11,3 +11,4 @@ busybox*
 linux-*
 qemu/qemu/
 rootfs*
+pciutils/

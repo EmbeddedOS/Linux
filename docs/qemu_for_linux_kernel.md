@@ -92,6 +92,23 @@ sudo mknod -m 660 tty3 c 4 3
 sudo mknod -m 660 tty4 c 4 4
 ```
 
+- Create init script to mount our system:
+
+```bash
+cd rootfs
+mkdir -p etc/init.d/
+vim etc/init.d/rcS
+chmod -R 777 etc/init.d/rcS
+```
+
+- `rcS`:
+
+```bash
+# We need sysfs for our PCI bus, to read our PCI device available.
+mount -t sysfs none /sys
+mount -t proc none /proc
+```
+
 - Compress all rootfs:
 
 ```bash
@@ -182,6 +199,7 @@ make -j4
     system_ss.add(when: 'CONFIG_C_PCI_DEV', if_true: files('custom_pci_dev.c'))
     ```
 
+  - Or apply the `build.patch` file.
 - 2. We also to need our device file `hw/misc/custom_pci_dev.c` compiled and integrated into the qemu build.
 
     ```bash
@@ -195,6 +213,26 @@ make -j4
     ./qemu-system-arm -device help | grep 'c_pci_dev'
     ```
 
+- 5. Run QEMU with our device (NOTE: we need to use new arch `virt-2.10` to support PCI):
+
+    ```bash
+    ./qemu-system-arm -M virt-2.10 -kernel ../../linux-6.6.22/arch/arm/boot/zImage -initrd ../../rootfs.cpio.gz -append "root=/dev/mem" -nographic -device c_pci_dev
+    ```
+
+  - The log:
+
+    ```text
+    [    0.977193] pci 0000:00:02.0: [1234:abcd] type 00 class 0x00ff00
+    ```
+
+  - CHeck device exist with `lspci`. The log:
+
+    ```text
+    00:00.0 Class 0600: 1b36:0008
+    00:02.0 Class 00ff: 1234:abcd
+    00:01.0 Class 0200: 1af4:1000
+    ```
+
 ### 3.2. About our device
 
 - Our device is simple enough in the point where it has 4 registers:
@@ -202,3 +240,85 @@ make -j4
   - `opcode`: which determines the operation to occur with `op1` and `op2`.
   - `result`: holds the result of calculation.
   - `error`: error code.
+
+## 4. Develop some pci utilities (lspci, setpci) for ARM
+
+- Because the busybox support PCI utilities very little, we need to add some utilities.
+- 1. Clone repo:
+
+    ```bash
+    git clone git://git.kernel.org/pub/scm/utils/pciutils/pciutils.git
+    ```
+
+- 2. Apply the `pciutils.patch` to config Makefile.
+- 3. Copy binaries `lspci` and `setpci` to our rootfs.
+
+```bash
+cd rootfs
+cp ../pciutils/lspci usr/bin/c_lspci
+cp ../pciutils/setpci usr/bin/c_setpci
+```
+
+- 4. Copy dependency libraries to our rootfs.
+
+```bash
+# Check needed shared libraries: readelf -d ../pciutils/lspci
+cd rootfs
+mkdir lib
+
+# lspci depends on these.
+cp ../pciutils/lib/libpci.so.3.11.1 lib/libpci.so.3
+cp ../arm-gnu-toolchain/arm-none-linux-gnueabihf/libc/lib/libc.so.6 lib/
+
+# libc.so depends on this.
+cp ../arm-gnu-toolchain/arm-none-linux-gnueabihf/libc/lib/ld-linux-armhf.so.3 lib/
+```
+
+- 5. Rebuild busybox with libc shared libraries, we will add shared libraries by our self so we need to disable `Build static binary (no shared libs)`:
+
+```bash
+cd busybox-1.36.1
+# Change config with menu config.
+make ARCH=arm CROSS_COMPILE=../arm-gnu-toolchain/bin/arm-none-linux-gnueabihf- menuconfig
+
+# Rebuild.
+make ARCH=arm CROSS_COMPILE=../arm-gnu-toolchain/bin/arm-none-linux-gnueabihf- -j4
+
+# Recopy.
+cp -av _install/* ../rootfs/
+
+```
+
+- Check needed shared libraries of busybox: `readelf -d busybox` we found some dependencies:
+
+```text
+ 0x00000001 (NEEDED)                     Shared library: [libm.so.6]
+ 0x00000001 (NEEDED)                     Shared library: [libresolv.so.2]
+ 0x00000001 (NEEDED)                     Shared library: [libc.so.6]
+```
+
+- We need to copy them from the toolchain also:
+
+```bash
+cd rootfs
+
+# libc.so depends on this.
+cp ../arm-gnu-toolchain/arm-none-linux-gnueabihf/libc/lib/libresolv.so.2 lib/
+cp ../arm-gnu-toolchain/arm-none-linux-gnueabihf/libc/lib/libm.so.6 lib/
+```
+
+- Re-compress:
+
+```bash
+cd rootfs
+find . -print0 | cpio --null -ov --format=newc | gzip -9 > ../rootfs.cpio.gz
+```
+
+- Test our new commands:
+
+```bash
+./qemu-system-arm -M virt-2.10 -kernel ../../linux-6.6.22/arch/arm/boot/zImage -initrd ../../rootfs.cpio.gz -append "root=/dev/mem" -nographic -device c_pci_dev
+
+# More info
+c_lspci  -s 00:02.0 -vvv
+```
