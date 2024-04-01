@@ -1,0 +1,36 @@
+diff --git a/Makefile b/Makefile
+index aaec04e..a6657c3 100644
+--- a/Makefile
++++ b/Makefile
+@@ -8,24 +8,24 @@ VERSION=3.11.1
+ DATE=2024-02-25
+ 
+ # Host OS and release (override if you are cross-compiling)
+-HOST=
++HOST=linux
+ RELEASE=
+-CROSS_COMPILE=
++CROSS_COMPILE=/home/larva/Documents/Driver-Development/qemu/arm-gnu-toolchain/bin/arm-none-linux-gnueabihf-
+ 
+ # Support for compressed pci.ids (yes/no, default: detect)
+-ZLIB=
++ZLIB=no
+ 
+ # Support for resolving ID's by DNS (yes/no, default: detect)
+-DNS=
++DNS=no
+ 
+ # Build libpci as a shared library (yes/no; or local for testing; requires GCC)
+-SHARED=no
++SHARED=yes
+ 
+ # Use libkmod to resolve kernel modules on Linux (yes/no, default: detect)
+-LIBKMOD=
++LIBKMOD=no
+ 
+ # Use libudev to resolve device names using hwdb on Linux (yes/no, default: detect)
+-HWDB=
++HWDB=no
+ 
+ # ABI version suffix in the name of the shared library
+ # (as we use proper symbol versioning, this seldom needs changing)
