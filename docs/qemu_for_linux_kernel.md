@@ -322,3 +322,28 @@ find . -print0 | cpio --null -ov --format=newc | gzip -9 > ../rootfs.cpio.gz
 # More info
 c_lspci  -s 00:02.0 -vvv
 ```
+
+## 5. Writing a driver for our QEMU PCI
+
+```text
+~ # c_lspci
+00:00.0 Class 0600: Device 1b36:0008
+00:01.0 Class 0200: Device 1af4:1000
+00:02.0 Class 00ff: Device 1234:abcd (rev 10)
+~ # c_lspci  -s 00:02.0 -vvv
+00:02.0 Class 00ff: Device 1234:abcd (rev 10)
+        Subsystem: Device 1af4:1100
+        Control: I/O- Mem- BusMaster- SpecCycle- MemWINV- VGASnoop- ParErr- Stepping- SERR+ FastB2B- DisINTx-
+        Status: Cap+ 66MHz- UDF- FastB2B- ParErr- DEVSEL=fast >TAbort- <TAbort- <MAbort- >SERR- <PERR- INTx-
+        Interrupt: pin A routed to IRQ 0
+        Region 0: Memory at 10000000 (32-bit, non-prefetchable) [disabled] [size=1M]
+        Region 1: Memory at 10245000 (32-bit, non-prefetchable) [disabled] [size=4K]
+        Region 2: Memory at 10100000 (32-bit, non-prefetchable) [disabled] [size=1M]
+        Capabilities: [40] MSI: Enable- Count=1/1 Maskable- 64bit+
+                Address: 0000000000000000  Data: 0000
+```
+
+- We create 3 memory region for testing:
+  - 1. Region 0: perform math calculating. Start at: 10000000
+  - 2. Region 1: 4KB for read/write memory. Start at: 10245000
+  - 3. Region 2: For Fire IRQ. Start at: 10100000

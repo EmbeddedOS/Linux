@@ -22,6 +22,7 @@
 #define OPCODE_DIV              0x02
 #define OPCODE_SUB              0x03
 
+#define DMA_BAR_SIZE            4096
 
 typedef struct _pci_device_object _pci_device_object;
 
@@ -44,6 +45,16 @@ DECLARE_INSTANCE_CHECKER(_pci_device_object, C_PCI_DEV, TYPE_PCI_CUSTOM_DEVICE);
  */
 struct _pci_device_object {
     PCIDevice _pci_dev;
+
+    /* Test read/write memory. */
+    MemoryRegion _dma_region;
+    uint8_t _dma_bar[DMA_BAR_SIZE];
+
+    /* Test device interrupt, fire dma. */
+    bool _set_irq;
+    MemoryRegion _irq_mmio;
+
+    /* Test operators. */
     MemoryRegion _mmio;
     uint32_t _operand_1;
     uint32_t _operand_2;
@@ -126,6 +137,76 @@ static void _pci_dev_mmio_write(void *opaque, hwaddr addr, uint64_t val,
     }
 }
 
+static uint64_t _pci_dev_dma_mmio_read(void *opaque, hwaddr addr, unsigned size)
+{
+    _pci_device_object *_pci_dev = (_pci_device_object *)opaque;
+    printf("_PCI_DEV: _pci_dev_dma_mmio_read() addr 0x%lx\n", addr);
+    printf("_PCI_DEV: _pci_dev_dma_mmio_read() size 0x%x\n", size);
+
+    if (size == 1) {
+        return _pci_dev->_dma_bar[addr];
+    } else if (size == 2) {
+        uint16_t *ptr = (uint16_t *) &_pci_dev->_dma_bar[addr];
+        return *ptr;
+    } else if (size == 4) {
+        uint32_t *ptr = (uint32_t *) &_pci_dev->_dma_bar[addr];
+        return *ptr;
+    } else if (size == 8) {
+        uint64_t *ptr = (uint64_t *) &_pci_dev->_dma_bar[addr];
+        return *ptr;
+    }
+
+    return 0xffffffffffffffL;
+}
+
+static void _pci_dev_dma_mmio_write(void *opaque, hwaddr addr, uint64_t val,
+                unsigned size)
+{
+    _pci_device_object *_pci_dev = (_pci_device_object *)opaque;
+    printf("_PCI_DEV: _pci_dev_dma_mmio_write() addr 0x%lx\n", addr);
+    printf("_PCI_DEV: _pci_dev_dma_mmio_write() val 0x%lx\n", val);
+
+    if (size == 1) {
+        _pci_dev->_dma_bar[addr] = (uint8_t)val;
+    } else if (size == 2) {
+        uint16_t *ptr = (uint16_t *) &_pci_dev->_dma_bar[addr];
+        *ptr = (uint16_t) val;
+    } else if (size == 4) {
+        uint32_t *ptr = (uint32_t *) &_pci_dev->_dma_bar[addr];
+        *ptr = (uint32_t) val;
+    } else if (size == 8) {
+        uint64_t *ptr = (uint64_t *) &_pci_dev->_dma_bar[addr];
+        *ptr = (uint64_t) val;
+    }
+}
+
+static uint64_t _pci_dev_irq_mmio_read(void *opaque, hwaddr addr, unsigned size)
+{
+    _pci_device_object *_pci_dev = (_pci_device_object *)opaque;
+    printf("_PCI_DEV: _pci_dev_irq_mmio_read() addr 0x%lx\n", addr);
+    printf("_PCI_DEV: _pci_dev_irq_mmio_read() size 0x%x\n", size);
+
+    if (_pci_dev->_set_irq == true) {
+        _pci_dev->_set_irq = false;
+        return 0;
+    }
+
+    return 0xffffffffffffffL;
+}
+
+static void _pci_dev_irq_mmio_write(void *opaque, hwaddr addr, uint64_t val,
+                unsigned size)
+{
+    _pci_device_object *_pci_dev = (_pci_device_object *)opaque;
+    printf("_PCI_DEV: _pci_dev_irq_mmio_write() addr 0x%lx\n", addr);
+    printf("_PCI_DEV: _pci_dev_irq_mmio_write() val 0x%lx\n", val);
+
+    _pci_dev->_set_irq = true;
+
+    /* Fire interrupt. */
+    pci_set_irq(&_pci_dev->_pci_dev, 1);
+}
+
 /**
  * @brief Memory region callbacks.
  * 
@@ -150,7 +231,34 @@ static const MemoryRegionOps _pci_dev_mmio_ops = {
         .min_access_size = 4,
         .max_access_size = 8,
     },
+};
 
+static const MemoryRegionOps _pci_dev_dma_mmio_ops = {
+    .read = _pci_dev_dma_mmio_read,
+    .write = _pci_dev_dma_mmio_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
+    .valid = {
+        .min_access_size = 1,
+        .max_access_size = 8,
+    },
+    .impl = {
+        .min_access_size = 1,
+        .max_access_size = 8,
+    },
+};
+
+static const MemoryRegionOps _pci_dev_irq_mmio_ops = {
+    .read = _pci_dev_irq_mmio_read,
+    .write = _pci_dev_irq_mmio_write,
+    .endianness = DEVICE_NATIVE_ENDIAN,
+    .valid = {
+        .min_access_size = 1,
+        .max_access_size = 8,
+    },
+    .impl = {
+        .min_access_size = 1,
+        .max_access_size = 8,
+    },
 };
 
 static void _pci_dev_realize(PCIDevice *dev, Error **errp)
@@ -164,11 +272,15 @@ static void _pci_dev_realize(PCIDevice *dev, Error **errp)
         return;
     }
 
+    memset(_pci_dev->_dma_bar, 0, DMA_BAR_SIZE);
+
     _pci_dev->_operand_1 = 0x02;
     _pci_dev->_operand_2 = 0x04;
     _pci_dev->_opcode = 0xAA;
     _pci_dev->_result = 0xBB;
     _pci_dev->_error = 0x00;
+
+    _pci_dev->_set_irq = false;
 
     /**
      * @brief Initialize an I/O memory region. Accesses into the region will
@@ -208,6 +320,32 @@ static void _pci_dev_realize(PCIDevice *dev, Error **errp)
      * possible relocation.
      */
     pci_register_bar(dev, 0, PCI_BASE_ADDRESS_SPACE_MEMORY, &_pci_dev->_mmio);
+
+    /* DMA memory. */
+    memory_region_init_io(&_pci_dev->_dma_region,
+                          OBJECT(_pci_dev),
+                          &_pci_dev_dma_mmio_ops,
+                          _pci_dev,
+                          "_pci_dev-mmio",
+                          DMA_BAR_SIZE);
+    
+    pci_register_bar(dev,
+                     1,
+                     PCI_BASE_ADDRESS_SPACE_MEMORY,
+                     &_pci_dev->_dma_region);
+    
+    /* Test interrupt. */
+    memory_region_init_io(&_pci_dev->_irq_mmio,
+                          OBJECT(_pci_dev),
+                          &_pci_dev_irq_mmio_ops,
+                          _pci_dev,
+                          "_pci_dev-mmio",
+                          1 * MiB);
+    
+    pci_register_bar(dev,
+                     2,
+                     PCI_BASE_ADDRESS_SPACE_MEMORY,
+                     &_pci_dev->_irq_mmio);
 }
 
 static void _pci_dev_exit(PCIDevice *pdev)
