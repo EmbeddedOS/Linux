@@ -347,3 +347,38 @@ c_lspci  -s 00:02.0 -vvv
   - 1. Region 0: perform math calculating. Start at: 10000000
   - 2. Region 1: 4KB for read/write memory. Start at: 10245000
   - 3. Region 2: For Fire IRQ. Start at: 10100000
+
+- To build our driver:
+
+```bash
+cd drivers
+make ARCH=arm CROSS_COMPILE=../arm-gnu-toolchain/bin/arm-none-linux-gnueabihf- -j4
+```
+
+- Copy to the roofs:
+
+```bash
+cd rootfs
+cp ../drivers/custom_pci_drv.ko .
+find . -print0 | cpio --null -ov --format=newc | gzip -9 > ../rootfs.cpio.gz
+```
+
+- Run our system and `insmod` the module:
+
+```text
+~ # insmod custom_pci_drv.ko
+[   11.467280] custom_pci_drv: loading out-of-tree module taints kernel.
+[   11.481673] c_pci_dev 0000:00:02.0: enabling device (0100 -> 0102)
+[   11.484576] _probe(): Region 0 length: 1048576
+[   11.485620] _probe(): Region 1 length: 4096
+[   11.486428] _probe(): Region 2 length: 1048576
+_PCI_DEV: _pci_dev_mmio_write() addr 0x10
+_PCI_DEV: _pci_dev_mmio_write() val 0x1
+_PCI_DEV: _pci_dev_mmio_write() addr 0x14
+_PCI_DEV: _pci_dev_mmio_write() val 0x2
+_PCI_DEV: _pci_dev_mmio_write() addr 0x18
+_PCI_DEV: _pci_dev_mmio_write() val 0x0
+_PCI_DEV: _pci_dev_mmio_read() addr 0x20
+_PCI_DEV: _pci_dev_mmio_read() size 0x4
+[   11.488649] _probe(): Read result from BAR1: 3
+```
