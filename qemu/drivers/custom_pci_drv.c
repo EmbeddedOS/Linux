@@ -2,6 +2,7 @@
 #include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/delay.h>
+#include <linux/cdev.h>
 
 #define TYPE_PCI_CUSTOM_DEVICE  "c_pci_dev"
 #define DEVICE_VENDOR_ID        0x1234
@@ -17,13 +18,40 @@
 #define OPCODE_DIV              0x02
 #define OPCODE_SUB              0x03
 
+#define DEVICE_NAME TYPE_PCI_CUSTOM_DEVICE
+
+struct c_pci_dev {
+    struct pci_dev *_dev;
+    struct class *_cls;
+    int _major;
+} _dev;
+
 static struct pci_device_id dev_ids[] = {
     {PCI_DEVICE(DEVICE_VENDOR_ID, DEVICE_DEVICE_ID)},
     {}
 };
-
-/* Use this macro for matching device. */
 MODULE_DEVICE_TABLE(pci, dev_ids);
+
+static int _mmap(struct file *file, struct vm_area_struct *vma)
+{
+    int res = 0;
+    vma->vm_pgoff = pci_resource_start(_dev._dev, 0) >> PAGE_SHIFT;
+
+    return res;
+}
+
+static int _open(struct inode * inode, struct file *f);
+static int _release(struct inode * inode, struct file *f);
+static ssize_t _read(struct file *f, char __user *p, size_t size, loff_t *offset);
+static ssize_t _write(struct file *f, const char __user *p, size_t size, loff_t *offset);
+
+static struct file_operations f_ops = {
+    .read = _read,
+    .write = _write,
+    .open = _open,
+    .release = _release,
+    .mmap = _mmap,
+};
 
 static int _probe(struct pci_dev *dev, const struct pci_device_id *id)
 {
@@ -81,14 +109,53 @@ static int _probe(struct pci_dev *dev, const struct pci_device_id *id)
             __FUNCTION__,
             ioread32(bar_0_ptr + REG_RESULT));
 
+    /* 4. Expose our driver. */
+    _dev._dev = dev;
+    _dev._major = register_chrdev(0, DEVICE_NAME, &f_ops);
+    if ( _dev._major < 0)
+    { // Registration failed.
+        pr_alert("Registering char device failed with %d\n",  _dev._major);
+        res = _dev._major;
+        goto exit;
+    }
 
+    /* Create a struct class structure.
+     * @owner: pointer to the module that is to `own` this struct class.
+     * @name: pointer to a string for the name of this class.
+     */
+     _dev._cls = class_create(DEVICE_NAME);
+    if (IS_ERR_OR_NULL(_dev._cls)) {
+        res = PTR_ERR(_dev._cls);
+        pr_err("%s(): Failed to create class: %d\n", __FUNCTION__, res);
+        goto release_dev;
+    }
+
+    /* Creates a device and registers it with sysfs.
+     * @class: pointer to the struct class that this device should be registered to.
+     * @parent: pointer to the parent struct device of this new device, if any.
+     * @devt: the dev_t for the char device to be added.
+     * @drvdata: the data to be added to the device for callbacks.
+     * @fmt: string for the device's name.
+     * @...: variable arguments.
+     */
+    device_create(_dev._cls, NULL, MKDEV(_dev._major, 0), NULL, DEVICE_NAME);
+
+    pr_info("Device created on /dev/%s.\n", DEVICE_NAME);
+
+    return 0;
+
+release_dev:
+    unregister_chrdev(_dev._major, DEVICE_NAME);
 exit:
     return res;
 }
 
 static void _remove(struct pci_dev *dev)
 {
-    pr_info("%s()\n", __FUNCTION__);
+    pr_info("%s(): invoked.\n", __FUNCTION__);
+    device_destroy(_dev._cls, MKDEV(_dev._major, 0));
+    class_destroy(_dev._cls);
+    unregister_chrdev(_dev._major, DEVICE_NAME);
 }
 
 static struct pci_driver _driver = {
@@ -97,6 +164,30 @@ static struct pci_driver _driver = {
     .remove = _remove,
     .id_table = dev_ids
 };
+
+static int _open(struct inode * inode, struct file *f)
+{
+    pr_info("%s(): invoked.\n", __FUNCTION__);
+    return 0;
+}
+
+static int _release(struct inode * inode, struct file *f)
+{
+    pr_info("%s(): invoked.\n", __FUNCTION__);
+    return 0;
+}
+
+static ssize_t _read(struct file *f, char __user *p, size_t size, loff_t *offset)
+{
+    pr_info("%s(): invoked.\n", __FUNCTION__);
+    return 0;
+}
+
+static ssize_t _write(struct file *f, const char __user *p, size_t size, loff_t *offset)
+{
+    pr_info("%s(): invoked.\n", __FUNCTION__);
+    return 0;
+}
 
 module_pci_driver(_driver);
 MODULE_LICENSE("GPL");
