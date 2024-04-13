@@ -35,6 +35,8 @@ MODULE_DEVICE_TABLE(pci, dev_ids);
 static int _mmap(struct file *file, struct vm_area_struct *vma)
 {
     int res = 0;
+
+    /* VM Area offset map to first page of PCI resource. */
     vma->vm_pgoff = pci_resource_start(_dev._dev, 0) >> PAGE_SHIFT;
 
     return res;
