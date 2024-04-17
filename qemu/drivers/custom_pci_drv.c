@@ -20,6 +20,10 @@
 
 #define DEVICE_NAME TYPE_PCI_CUSTOM_DEVICE
 
+#define __pr_info(fmt, arg...) pr_info("%s():" fmt, __FUNCTION__, ##arg)
+#define __pr_err(fmt, arg...) pr_err("%s():" fmt, __FUNCTION__, ##arg)
+
+
 struct c_pci_dev {
     struct pci_dev *_dev;
     struct class *_cls;
@@ -36,22 +40,38 @@ static int _mmap(struct file *file, struct vm_area_struct *vma)
 {
     int res = 0;
 
-    /* VM Area offset map to first page of PCI resource. */
+    /* VM Area offset will point to first page of PCI DMA (physical addr).
+     * pci_resource_start() return start address od PCI BAR.
+     * We shift `PAGE_SHIFT` bits the address to right to get the page number.
+     **/
     vma->vm_pgoff = pci_resource_start(_dev._dev, 0) >> PAGE_SHIFT;
 
+    /* We map user VMA to the BAR. */
+    res = io_remap_pfn_range(vma,
+                             vma->vm_start,
+                             vma->vm_pgoff,
+                             vma->vm_end - vma->vm_start,
+                             vma->vm_page_prot);
+    if (res) {
+        __pr_err("Failed to map PCI BAR 0 to user VMA: %d", res);
+        res = -res;
+        goto exit;
+    }
+
+exit:
     return res;
 }
 
-static int _open(struct inode * inode, struct file *f);
-static int _release(struct inode * inode, struct file *f);
+static int _open(struct inode *inode, struct file *f);
+static int _release(struct inode *inode, struct file *f);
 static ssize_t _read(struct file *f, char __user *p, size_t size, loff_t *offset);
 static ssize_t _write(struct file *f, const char __user *p, size_t size, loff_t *offset);
 
 static struct file_operations f_ops = {
-    .read = _read,
-    .write = _write,
-    .open = _open,
-    .release = _release,
+    // .read = _read,
+    // .write = _write,
+    // .open = _open,
+    // .release = _release,
     .mmap = _mmap,
 };
 
@@ -114,7 +134,7 @@ static int _probe(struct pci_dev *dev, const struct pci_device_id *id)
     /* 4. Expose our driver. */
     _dev._dev = dev;
     _dev._major = register_chrdev(0, DEVICE_NAME, &f_ops);
-    if ( _dev._major < 0)
+    if (_dev._major < 0)
     { // Registration failed.
         pr_alert("Registering char device failed with %d\n",  _dev._major);
         res = _dev._major;
