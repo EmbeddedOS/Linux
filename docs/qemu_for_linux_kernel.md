@@ -382,3 +382,20 @@ _PCI_DEV: _pci_dev_mmio_read() addr 0x20
 _PCI_DEV: _pci_dev_mmio_read() size 0x4
 [   11.488649] _probe(): Read result from BAR1: 3
 ```
+
+## 6. `mmap()` a PCI BAR in Linux Driver
+
+- Build usr programs:
+
+```bash
+cd usr
+make ARCH=arm CROSS_COMPILE=../arm-gnu-toolchain/bin/arm-none-linux-gnueabihf- -j4
+```
+
+- Copy to rootfs:
+
+```bash
+cd rootfs
+cp ../usr/*.o .
+find . -print0 | cpio --null -ov --format=newc | gzip -9 > ../rootfs.cpio.gz
+```
