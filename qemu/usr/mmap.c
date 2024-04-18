@@ -4,7 +4,7 @@
 #include <fcntl.h>
 #include <unistd.h>
 
-#define BAR_0_LENGTH (1024 * 1024)   // 1 MB.
+#define BAR_0_LENGTH (0x40)   // 64 byte.
 
 int main()
 {

@@ -110,16 +110,6 @@ static int _probe(struct pci_dev *dev, const struct pci_device_id *id)
 
     pr_info("%s(): Region 1 length: %d \n", __FUNCTION__, pci_resource_len(dev, 1));
 
-    bar_2_ptr = pcim_iomap(dev, 2, pci_resource_len(dev, 2));
-    if (bar_2_ptr == NULL)
-    {
-        pr_err("%s(): Failed to map mem region 2.\n", __FUNCTION__);
-        res = -ENODEV;
-        goto exit;
-    }
-
-    pr_info("%s(): Region 2 length: %d \n", __FUNCTION__, pci_resource_len(dev, 2));
-
     /* 3. Test math operators. */
     iowrite32((u32)1, bar_0_ptr + REG_OP1);
     iowrite32((u32)2, bar_0_ptr + REG_OP2);
