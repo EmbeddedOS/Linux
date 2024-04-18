@@ -399,3 +399,27 @@ cd rootfs
 cp ../usr/*.o .
 find . -print0 | cpio --null -ov --format=newc | gzip -9 > ../rootfs.cpio.gz
 ```
+
+## 7. Using DMA in a Linux PCI or PCI Express Driver
+
+- PCI inbound transaction, we use `ioread()`, `iowrite()` to access device memory:
+
+```text
+CPU -------ioread[8,16,32],iowrite[8,16,32] ------------> PCI device.
+```
+
+- We have another ways, PCI Outbound Transaction, where **the PCI device is accessing the address base from the Host CPU** this is called Outbound Transaction:
+
+```text
+CPU <------------------- PCI device.
+```
+
+- We have several ways to do this, but for our custom QEMU device, we will make a DMA controller:
+
+```text
+CPU ---------Configuring DMA----------> DMA controller (our PCI device).
+    \<---------DMA Transfer data-------/ 
+```
+
+- We now use DMA controller for our PCI device so we need define some specification, so the driver can configure our DMA controller.
+- Commander register, we need to configure bit 2 (Bus master), bit 1 (Memory Space), bus 0 (I/O space).
