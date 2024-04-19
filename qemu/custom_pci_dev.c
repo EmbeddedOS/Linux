@@ -24,14 +24,22 @@
 
 #define BIG_BAR_SIZE            4096
 
+#define DMA_REG_CMD             0x00
+#define DMA_REG_SRC             0x04
+#define DMA_REG_DST             0x08
+#define DMA_REG_LEN             0x0C
 
 /**
  * our CMD register:
  * Bit 0 is run DMA or not.
- * Bit 1-2 are DMA direction: to device or from device.
+ * Bit 1 are DMA direction: to device or from device.
  */
-#define DMA_CMD_RUN (1)
-#define DMA_DIRECTION ()
+#define DMA_CMD_RUN                 1
+#define DMA_DIRECTION_TO_DEVICE     0
+#define DMA_DIRECTION_FROM_DEVICE   1
+
+#define DMA_GET_DIR(cmd) ((cmd & 0b10) >> 1)
+
 
 typedef struct _pci_device_object _pci_device_object;
 
@@ -55,7 +63,8 @@ DECLARE_INSTANCE_CHECKER(_pci_device_object, C_PCI_DEV, TYPE_PCI_CUSTOM_DEVICE);
 struct _pci_device_object {
     PCIDevice _pci_dev;
 
-    /* Test read/write large memory and also DMA will direct to this region. */
+    /* Test read/write large memory and also this region is used by 
+     * DMA controller like a device memory region. */
     MemoryRegion _big_mem_region;
     uint8_t _big_mem_bar[BIG_BAR_SIZE];
 
@@ -69,7 +78,12 @@ struct _pci_device_object {
 
     /* Test DMA, to receive DMA command. */
     MemoryRegion _dma;
-
+    struct dma_state {
+        dma_addr_t _cmd;
+        dma_addr_t _src;
+        dma_addr_t _dst;
+        dma_addr_t _len;
+    } _dma_state;
 };
 
 static uint64_t _pci_dev_mmio_read(void *opaque, hwaddr addr, unsigned size)
@@ -201,6 +215,46 @@ static uint64_t _pci_dev_dma_mmio_read(void *opaque, hwaddr addr, unsigned size)
     return 0xffffffffffffffL;
 }
 
+static void fire_dma(_pci_device_object *_pci_dev)
+{
+        printf("pci_dma_*: src: %lx, dst: %lx, len: %ld, cmd: %lx\n",
+               _pci_dev->_dma_state._src,
+               _pci_dev->_dma_state._dst,
+               _pci_dev->_dma_state._len,
+               _pci_dev->_dma_state._cmd);
+
+    if (DMA_GET_DIR(_pci_dev->_dma_state._cmd) == DMA_DIRECTION_TO_DEVICE)
+    {
+        if ((_pci_dev->_dma_state._dst + _pci_dev->_dma_state._len) > BIG_BAR_SIZE)
+        {
+            printf("Buffer overflow!\n");
+            return;
+        }
+
+        /* Read from address and store in buffer. This function start transfer
+         * from physical memory to device memory. */
+        pci_dma_read(&_pci_dev->_pci_dev,                                // Device.
+                     _pci_dev->_dma_state._src,                          // Physical Memory Address.
+                     _pci_dev->_big_mem_bar + _pci_dev->_dma_state._dst, // Device Memory Buffer Address.
+                     _pci_dev->_dma_state._len);                         // Length.
+
+    } else if (DMA_GET_DIR(_pci_dev->_dma_state._cmd) == DMA_DIRECTION_FROM_DEVICE)
+    {
+        if ((_pci_dev->_dma_state._src + _pci_dev->_dma_state._len) > BIG_BAR_SIZE)
+        {
+            printf("Buffer overflow!\n");
+            return;
+        }
+
+        /* Write data in buffer to address. This function start transfer from 
+         * device memory to physical memory (defined by dest). */
+        pci_dma_write(&_pci_dev->_pci_dev,                                // Device.
+                      _pci_dev->_dma_state._dst,                          // Physical Address.
+                      _pci_dev->_big_mem_bar + _pci_dev->_dma_state._src, // Device Memory Buffer Address.
+                      _pci_dev->_dma_state._len);                         // Length.
+    }
+}
+
 static void _pci_dev_dma_mmio_write(void *opaque, hwaddr addr, uint64_t val,
                 unsigned size)
 {
@@ -208,11 +262,28 @@ static void _pci_dev_dma_mmio_write(void *opaque, hwaddr addr, uint64_t val,
     printf("_PCI_DEV: _pci_dev_dma_mmio_write() addr 0x%lx\n", addr);
     printf("_PCI_DEV: _pci_dev_dma_mmio_write() val 0x%lx\n", val);
 
-    if (val & DMA_CMD_RUN)
+    switch (addr)
     {
-
+    case DMA_REG_CMD:
+        _pci_dev->_dma_state._cmd = val;
+        if (val & DMA_CMD_RUN)
+        {
+            printf("_PCI_DEV: fire dma!");
+            fire_dma(_pci_dev);
+        }
+        break;
+    case DMA_REG_SRC:
+        _pci_dev->_dma_state._src = val;
+        break;
+    case DMA_REG_DST:
+        _pci_dev->_dma_state._dst = val;
+        break;
+    case DMA_REG_LEN:
+        _pci_dev->_dma_state._len = val;
+        break;
+    default:
+        break;
     }
-
 }
 
 /**
@@ -346,7 +417,7 @@ static void _pci_dev_realize(PCIDevice *dev, Error **errp)
                           &_pci_dev_dma_mmio_ops,
                           _pci_dev,
                           "_pci_dev-mmio",
-                          0x4);
+                          0x20);
 
     pci_register_bar(dev,
                      2,

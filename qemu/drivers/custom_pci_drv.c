@@ -18,6 +18,22 @@
 #define OPCODE_DIV              0x02
 #define OPCODE_SUB              0x03
 
+#define DMA_REG_CMD             0x00
+#define DMA_REG_SRC             0x04
+#define DMA_REG_DST             0x08
+#define DMA_REG_LEN             0x0C
+
+/**
+ * our CMD register:
+ * Bit 0 is run DMA or not.
+ * Bit 1 are DMA direction: to device or from device.
+ */
+#define DMA_CMD_RUN                 1
+#define DMA_DIRECTION_TO_DEVICE     0
+#define DMA_DIRECTION_FROM_DEVICE   1
+
+#define DMA_GET_DIR(cmd) ((cmd & 0b10) >> 1)
+
 #define DEVICE_NAME TYPE_PCI_CUSTOM_DEVICE
 
 #define __pr_info(fmt, arg...) pr_info("%s():" fmt, __FUNCTION__, ##arg)
@@ -68,10 +84,10 @@ static ssize_t _read(struct file *f, char __user *p, size_t size, loff_t *offset
 static ssize_t _write(struct file *f, const char __user *p, size_t size, loff_t *offset);
 
 static struct file_operations f_ops = {
-    // .read = _read,
-    // .write = _write,
-    // .open = _open,
-    // .release = _release,
+    .read = _read,
+    .write = _write,
+    .open = _open,
+    .release = _release,
     .mmap = _mmap,
 };
 
@@ -80,7 +96,6 @@ static int _probe(struct pci_dev *dev, const struct pci_device_id *id)
     int res = 0;
     void __iomem *bar_0_ptr = NULL;
     void __iomem *bar_1_ptr = NULL;
-    void __iomem *bar_2_ptr = NULL;
 
     /* 1. Enable PCI device. */
     res = pcim_enable_device(dev);
@@ -117,7 +132,7 @@ static int _probe(struct pci_dev *dev, const struct pci_device_id *id)
 
     mdelay(1);
 
-    pr_info("%s(): Read result from BAR1: %d\n",
+    pr_info("%s(): Read result from BAR0: %d\n",
             __FUNCTION__,
             ioread32(bar_0_ptr + REG_RESULT));
 
@@ -177,9 +192,20 @@ static struct pci_driver _driver = {
     .id_table = dev_ids
 };
 
+static int _dma_transfer(struct c_pci_dev* _dev,
+                         void *buffer,
+                         int len,
+                         dma_addr_t address,
+                         enum dma_direction dir)
+{
+    return 0;
+}
+
 static int _open(struct inode * inode, struct file *f)
 {
     pr_info("%s(): invoked.\n", __FUNCTION__);
+
+
     return 0;
 }
 
