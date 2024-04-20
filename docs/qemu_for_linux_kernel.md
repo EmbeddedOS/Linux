@@ -423,3 +423,19 @@ CPU ---------Configuring DMA----------> DMA controller (our PCI device).
 
 - We now use DMA controller for our PCI device so we need define some specification, so the driver can configure our DMA controller.
 - Commander register, we need to configure bit 2 (Bus master), bit 1 (Memory Space), bus 0 (I/O space).
+
+- Test our system:
+
+```bash
+insmod custom_pci_drv.ko
+c_setpci -s 00:02.0 COMMAND # c_ls_pci to see our pci device ID, in that case: 00:02.0
+mknod /dev/c_pci_dev c 235 0 # grep c_pci_dev /proc/devices to see our device major number.
+
+
+# Test DMA transfer write to device:
+echo -n -e '\x44\x33\x22\x11' > /dev/c_pci_dev
+echo "HI there" > /dev/c_pci_dev
+
+# Read DMA transfer read from device:
+cat /dev/c_pci_dev 
+```

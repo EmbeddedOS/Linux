@@ -208,7 +208,6 @@ static void _pci_dev_big_mem_mmio_write(void *opaque, hwaddr addr, uint64_t val,
 
 static uint64_t _pci_dev_dma_mmio_read(void *opaque, hwaddr addr, unsigned size)
 {
-    _pci_device_object *_pci_dev = (_pci_device_object *)opaque;
     printf("_PCI_DEV: _pci_dev_dma_mmio_read() addr 0x%lx\n", addr);
     printf("_PCI_DEV: _pci_dev_dma_mmio_read() size 0x%x\n", size);
 
@@ -268,7 +267,7 @@ static void _pci_dev_dma_mmio_write(void *opaque, hwaddr addr, uint64_t val,
         _pci_dev->_dma_state._cmd = val;
         if (val & DMA_CMD_RUN)
         {
-            printf("_PCI_DEV: fire dma!");
+            printf("_PCI_DEV: fire dma!\n");
             fire_dma(_pci_dev);
         }
         break;

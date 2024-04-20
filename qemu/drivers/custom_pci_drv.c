@@ -43,6 +43,7 @@
 struct c_pci_dev {
     struct pci_dev *_dev;
     struct class *_cls;
+    void __iomem *bar_2_ptr;
     int _major;
 } _dev;
 
@@ -104,6 +105,8 @@ static int _probe(struct pci_dev *dev, const struct pci_device_id *id)
         goto exit;
     }
 
+    pci_set_master(dev);
+
     /* Map device's memory regions. */
     bar_0_ptr = pcim_iomap(dev, 0, pci_resource_len(dev, 0));
     if (bar_0_ptr == NULL)
@@ -124,6 +127,16 @@ static int _probe(struct pci_dev *dev, const struct pci_device_id *id)
     }
 
     pr_info("%s(): Region 1 length: %d \n", __FUNCTION__, pci_resource_len(dev, 1));
+
+    _dev.bar_2_ptr = pcim_iomap(dev, 2, pci_resource_len(dev, 2));
+    if ( _dev.bar_2_ptr == NULL)
+    {
+        pr_err("%s(): Failed to map mem region 2.\n", __FUNCTION__);
+        res = -ENODEV;
+        goto exit;
+    }
+
+    pr_info("%s(): Region 2 length: %d \n", __FUNCTION__, pci_resource_len(dev, 2));
 
     /* 3. Test math operators. */
     iowrite32((u32)1, bar_0_ptr + REG_OP1);
@@ -167,7 +180,7 @@ static int _probe(struct pci_dev *dev, const struct pci_device_id *id)
      */
     device_create(_dev._cls, NULL, MKDEV(_dev._major, 0), NULL, DEVICE_NAME);
 
-    pr_info("Device created on /dev/%s.\n", DEVICE_NAME);
+    __pr_info("Device created on /dev/%s.\n", DEVICE_NAME);
 
     return 0;
 
@@ -179,7 +192,7 @@ exit:
 
 static void _remove(struct pci_dev *dev)
 {
-    pr_info("%s(): invoked.\n", __FUNCTION__);
+    __pr_info("invoked.\n");
     device_destroy(_dev._cls, MKDEV(_dev._major, 0));
     class_destroy(_dev._cls);
     unregister_chrdev(_dev._major, DEVICE_NAME);
@@ -196,35 +209,114 @@ static int _dma_transfer(struct c_pci_dev* _dev,
                          void *buffer,
                          int len,
                          dma_addr_t address,
-                         enum dma_direction dir)
+                         uint8_t dir)
 {
+    __pr_info("invoked.\n");
+
+    /* Map virtual memory `buffer` to the DMA device. */
+    dma_addr_t buffer_dma_addr = dma_map_single(&_dev->_dev->dev,
+                                                buffer,
+                                                len,
+                                                dir);
+
+    /* We configure DMA controller via registers first. */
+    iowrite32(len, _dev->bar_2_ptr + DMA_REG_LEN);
+
+    if (dir == DMA_DIRECTION_FROM_DEVICE) {
+        /* We read from the device, so dest will be our virtual memory buffer.
+         * Source data will be device address. In our case is offset from user.
+         */
+
+        iowrite32(buffer_dma_addr, _dev->bar_2_ptr + DMA_REG_DST);
+        iowrite32(address, _dev->bar_2_ptr + DMA_REG_SRC);
+    } else if (dir == DMA_DIRECTION_TO_DEVICE) {
+        iowrite32(buffer_dma_addr, _dev->bar_2_ptr + DMA_REG_SRC);
+        iowrite32(address, _dev->bar_2_ptr + DMA_REG_DST);
+    } else {
+        __pr_err("Invalid DIR\n");
+        goto exit;
+    }
+
+    /* We send run command let DMA controller read/write to the buffer. */
+    iowrite32(DMA_CMD_RUN | (dir << 1), _dev->bar_2_ptr + DMA_REG_CMD);
+
+exit:
+    dma_unmap_single(&_dev->_dev->dev, buffer_dma_addr, len, dir);
     return 0;
 }
 
-static int _open(struct inode * inode, struct file *f)
+static int _open(struct inode *inode, struct file *f)
 {
-    pr_info("%s(): invoked.\n", __FUNCTION__);
-
+    __pr_info("invoked.\n");
 
     return 0;
 }
 
 static int _release(struct inode * inode, struct file *f)
 {
-    pr_info("%s(): invoked.\n", __FUNCTION__);
+    __pr_info("invoked.\n");
     return 0;
 }
 
 static ssize_t _read(struct file *f, char __user *p, size_t size, loff_t *offset)
 {
-    pr_info("%s(): invoked.\n", __FUNCTION__);
-    return 0;
+    __pr_info("invoked.\n");
+
+    void *buf = NULL;
+    int user_len = 0;
+    int number_of_byte_not_transferred = 0;
+    if (size + *offset < pci_resource_len(_dev._dev, 1)) {
+        user_len = size;
+    } else {
+        user_len = pci_resource_len(_dev._dev, 1) - *offset;
+    }
+
+    buf = kmalloc(user_len, GFP_ATOMIC);
+
+    /* We read from DMA to kernel buffer. */
+    _dma_transfer(&_dev, buf, user_len, *offset, DMA_DIRECTION_FROM_DEVICE);
+
+    /* Wait a second for device do it's job. In real word, we can do something
+     * and receive DMA callback done. In our driver, we do some trick to wait
+     * the device done. */
+    mdelay(5);
+
+    /* Copy from kernel buffer to user space. */
+    number_of_byte_not_transferred = copy_to_user(p, buf, user_len);
+
+    kfree(buf);
+
+    *offset += user_len - number_of_byte_not_transferred;
+    return user_len - number_of_byte_not_transferred;
 }
 
 static ssize_t _write(struct file *f, const char __user *p, size_t size, loff_t *offset)
 {
-    pr_info("%s(): invoked.\n", __FUNCTION__);
-    return 0;
+    __pr_info("invoked.\n");
+
+    void *buf = NULL;
+    int user_len = 0;
+    int number_of_byte_not_transferred = 0;
+
+    if (size + *offset < pci_resource_len(_dev._dev, 1)) {
+        user_len = size;
+    } else {
+        user_len = pci_resource_len(_dev._dev, 1) - *offset;
+    }
+
+    buf = kmalloc(user_len, GFP_ATOMIC);
+
+    number_of_byte_not_transferred = copy_from_user(buf, p, user_len);
+    user_len -= number_of_byte_not_transferred;
+
+    /* Start transfer data from kernel buffer to device memory. */
+    _dma_transfer(&_dev, buf, user_len, *offset, DMA_DIRECTION_TO_DEVICE);
+
+    mdelay(5);
+    kfree(buf);
+
+    *offset += user_len;
+    return user_len;
 }
 
 module_pci_driver(_driver);
