@@ -1,4 +1,4 @@
-obj-m += custom_pci_drv.o
+obj-m += c_pci_qemu_driver.o
 
 PWD := $(CURDIR)
 
