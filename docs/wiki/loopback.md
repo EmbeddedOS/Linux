@@ -24,3 +24,9 @@
 - Various **Internet Engineering Task Force (IETF)** standards reserve the IPv4 address block `127.0.0.0/8` and the IPv6 address `::1/128` for this purpose.
 
 - The most common IPv4 address used is `127.0.0.1`. Commonly these loopback addresses are mapped to the host name `localhost`.
+
+### 3.1. Management Interface
+
+- Some computer network equipment use the term `loopback` for a virtual interface used for management purposes. Unlike a proper loopback interface, this type of loopback device is not used to talk with itself.
+
+- Such an interface is assigned an address that can be accessed from management equipment over a network but is not assigned to any of the physical interfaces on the device. Such a loopback device is also used for management datagrams, such as alarms, originating from the equipment. The property that makes this virtual interface special is that applications that use it will send or receive traffic using the address assigned to the virtual interface as opposed to the address on the physical interface through which the traffic passes.
