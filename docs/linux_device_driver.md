@@ -486,5 +486,93 @@ chmod $mode dev${device}[0-3]
 
 #### 3.2.4.1. File Operations
 
-- 1. `struct module *owner`: A pointer to the module that owns the structure. It's used to prevent the module being unloaded while its operations are in use.
-- 2. `loff_t (*llseek)(struct file *, loff_t, int);`: The `llseek` method is used to change the current read/write position in a file and the new position i returned as 
+- The `file_operations` structure is how a char driver sets up connection between device numbers and our driver's operations. The structure is a collection of function pointers.
+
+- We can consider the file to be an `object` and the functions operating on it to be its `methods`, using OOP term.
+  - This is the first sign of OOP we see in the kernel.
+
+- Now we explains the role of the most important operations and offers hints, caveats, and read code examples.
+  - NOTE: `user` keyword indicate the pointer is user space pointer.
+
+  - 1. `struct module *owner`: A pointer to the module that owns the structure. It's used to prevent the module being unloaded while its operations are in use.
+  - 2. `loff_t (*llseek)(struct file *, loff_t, int);`: The `llseek` method is used to change the current read/write position in a file and the new position is returned as a return value (positive).
+  - The `loff_t` parameter is a `long offset`.
+  - 3. `ssize_t (*read) (struct file, char user, size_t, loff_t *);` used to retrieve data from the device.
+  - 4. `ssize_t (*aio_read) (struct kiocb , char user , size_t, loff_t);` Initiates an asynchronous read -- a read operation that might not complete before the function returns.
+  - 5. `ssize_t (*write)(struct file, const char user, size_t, loff_t *);` Sends data to the device.
+  - 6. `ssize_t (*aio_write)(struct kiocb , const char user , size_t,loff_t *);` Initiates and asynchronous write operation on the device.
+  - 7. `unsigned int (*readdir)(struct file, void, filldir_t);` This field should be NULL for device files; it is used for reading directories and is useful only for file systems.
+  - 8. `unsigned int (*poll)(struct file, struct poll_table_struct);` The `poll` method is the backend of three system calls: `poll`, `epoll`, and `select`, all of which are used to query whether a read or write to one or more file descriptors would block. The `poll` method should return a bit mask indicating whether non-blocking reads or writes are possible, and, possibly, provide the kernel with information that can be used to put the calling process to sleep until I/O becomes possible.
+  - 9. `int (*ioctl)(struct inode, struct file, unsigned int, unsigned long));` The `ioctl` system call offers a way to issue device-specific commands. A few commands are recognized by the kernel without referring to the `file_operations` table.
+  - 10. `int (*mmap)(struct file, struct vm_area_struct);` The `mmap` is used ti request a mapping of device memory to a process's address space.
+  - 11. `int (*open)(struct inode, struct file);` though this is always the first operation performed on the device file, the driver is not required to declare a corresponding method.
+  - 12. `int (*flush)(struct file*);` the flush operation is invoked when a process closes its copy of a file descriptor for a device. Don't confuse with `fsync`.
+  - 13. `int (*release)(struct inode, struct file);` invoked when the file structure is being released.
+  - 14. `int (*fsync)(struct file, struct dentry, int);` this method is the backend of the `fsync` system call, which a user calls to flush any pending data.
+  - 15. `int (*fasync)(int, struct file *, int);` this operation is used to notify the device of a change in its `FASYNC` flag.
+  - 16. `int (*lock)(struct file, int, struct file_lock);` The `lock` method is used to implement file locking.
+  - 17. `ssize_t (*readv) (struct file , const struct iovec , unsigned long, loff_t *);`
+  - 18. `ssize_t (*writev) (struct file , const struct iovec , unsigned long, loff_t *);` These methods implement scatter/gather read and write operations. Applications occasionally need to do a single read or write operation involving multiple memory areas; these system calls allow them to do so without forcing extra copy operations on the data.
+  - 19. `ssize_t (*sendfile)(struct file, loff_t, size_t, read_actor_t, void *);` this method implements the read side of the `sendfile` system call, which moves the data from one file descriptor to another with a minimum of copying. It is used, for example, by a web server that needs to send the contents of a file out a network connection.
+  - 20. `ssize_t (*sendpage)(struct file, struct page, int, size_t, loff_t *, int);` The `sendpage` is the other half of `sendfile`; it is called by the kernel to send data, one page at a time, to the corresponding file.
+
+#### 3.2.4.2. The File Structure
+
+- `struct file`, is the second most important data structure used in device drivers. NOTE that a `file`, has nothing to do with the `FILE` pointers of userspace programs. A `FILE` is defined in the C library and never appears in kernel code. A `struct file`, on the other hand, is a kernel structure that never appears in user programs.
+
+- The `file` structure represents an `open file`. (It is not specific to device drivers; every open file in the system has an associated `struct file` in kernel space). It is created by the kernel on `open` and is passed to any function that operates on the file, until the last `close`. After all instances of the file are closed, the kernel release the data structure.
+
+- The most important fields of `struct file`:
+  - 1. `mode_t f_mode;` The file mode identifies the file as either readable or writable (or both), by means of the bits `FMODE_READ` and `FMODE_WRITE`. You might want to check this field for read/write permission in your `open` or `ioctl` function, but you don't need to check permissions for `read` and `write`, because the kernel checks before invoking your method.
+  - 2. `loff_t f_pos;` The current reading or writing position. The driver can read this value if it needs to know the current position in the file but should not normally change it; It should change by read(), write(), llseek().
+  - 3. `unsigned int f_flags;` these are the file flags, such as `O_RDONLY`, `O_NONBLOCK`, `O_SYNC`. A driver should check the `O_NONBLOCK` flag to see if nonblocking operation has been requested; The other flags are seldom used.
+  - 4. `struct file_operations *f_op;` The operations associated with the file. The kernel assigns the pointer as part of its implementation of `open` and then reads it when it needs to dispatch any operations.
+    - That means that we can change the file operations associated with your file, and the new methods will be effective after you return to the caller.
+    - The ability to replace the file operations is the kernel quivalent of **method overriding** in OOP.
+  - 5. `void *private_data;` you can free to make its own use of the field or to ignore it; you can use the field to point to allocated data, but then you must remember to free that memory in the release method before the file structure is destroyed by the kernel.
+  - 6. `struct dentry *f_dentry;`: The directory entry structure associated with the file. Device driver normally need not concern with this structure, other than to access the `inode` as `filp->f_dentry->d_inode;`
+
+#### 3.2.4.3. The inode structure
+
+- The `inode` structure is used by the kernel internally to represent files. Therefore it is different from the `file` structure that represents an open file descriptor.
+- There can be numerous `file` structures representing multiple open descriptors on a single file, but they all point to a single `inode` structure.
+
+- The `inode` structure contains a great deal of information about the file. As a genral rule, only two fields of this structure are of interest for writing driver code:
+  - `dev_t i_rdev;` For inodes that represent device files, this field contains the actual device number.
+  - `struct cdev *i_cdev;` struct cdev is the kernel's internal structure that represents char devices; this field contains a pointer to that structure when the inode refers to a char device file.
+
+### 3.2.5. Char Device Registration
+
+- The kernel use structures of type `struct cdev` to represent char devices internally. Before the kernel invokes your device's operations, you must allocate and register one or more of these structures.
+  - Almost helper functions are defined at `<linux/cdev.h>`.
+
+- There are **two ways** of allocating and initializing one of these structures. If you wish to obtain a standalone `cdev` structure at runtime, you may do so with code such as:
+
+```C
+struct cdev *my_cdev = cdev_alloc();
+my_cdev->ops = &my_ops;
+```
+
+- Chances are, howerver, that you will want to embed the `cdev` structure within a device-specific structure of your own; In thay case, you should initialize the structure that you have already allocated with:
+
+```C
+void cdev_init(struct cdev cdev, struct file_operations fops);
+```
+
+- Final step is to tell kernel about it with a call to:
+
+```C
+int cdev_add(struct cdev *dev, dev_t num, unsigned int count);
+```
+
+- Here, `dev` is the `cdev` structure, `num` is the first device number to which this device responds, and `count` is the number of device number that be associated with the device. Offten `count` is 1.
+
+#### 3.2.5.1. The Older way
+
+- The classic way to register a char device driver is with:
+
+```C
+int register_chrdev(unsigned int major, const char *name, struct file_operations *ops);
+```
+
+- A call to `register_chardev()` registers minor numbers 0-255 for the given `major`, and set up a default `cdev` structure for each. Drivers using this interface must be prepared to handle `open` calls on all 256 minor numbers (whether they correspond to real devices or not).
