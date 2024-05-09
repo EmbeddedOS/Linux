@@ -131,6 +131,9 @@ int __init vcam_driver_init(const char *device_name)
         goto device_creation_failure;
     }
 
+    /* 6. Init device access lock. */
+    spin_lock_init(&_drv->_device_access_lock);
+
     return 0;
 
 device_creation_failure:
