@@ -27,3 +27,7 @@
     │   └── *.c, *.h, */
     └── *.c, *.h, */
 ```
+
+## Utilities
+
+- `modinfo`: Show module info, description, license, module parameters.
