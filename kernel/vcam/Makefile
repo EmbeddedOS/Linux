@@ -1,5 +1,5 @@
 obj-m += vcam.o
-vcam-objs += module.o driver.o
+vcam-objs += module.o driver.o device.o
 
 PWD := $(CURDIR)
 
