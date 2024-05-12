@@ -77,3 +77,7 @@
   - 2. C shell (csh).
   - 3. Korn shell (ksh).
   - 4. Bourne again shell (bash): This shell is the GNU project’s re-implementation of the Bourne shell.
+
+### 2.3. Users and Groups
+
+- Each user on the system is uniquely identified, and users may belong to groups.
