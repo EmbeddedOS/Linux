@@ -12,7 +12,7 @@
 
 - Although it is possible to run programs on a computer without a kernel, the presence of a kernel greatly simplifies the writing and use of other programs, and increases the power and flexibility available to programmers. The kernel does this by providing a software layer to manage the limited resources of a computer.
 
-### 2.1.1. Tasks performed by the kernel
+#### 2.1.1. Tasks performed by the kernel
 
 - 1. **Process scheduling**: A computer has one or more central processing units (CPUs), which execute the instructions of programs. Like other UNIX systems, Linux is a **Preemptive Multitask** OS, that means multi-processes can simultaneously reside in memory and each may receive use of the CPU(s). **Preemptive** means that the rules governing which processes receive use of the CPU and how long are determined by the kernel process scheduler.
 
@@ -34,7 +34,7 @@
 
 - In addition to the above features, multi-user OSes such as Linux provide users with the abstraction of a *virtual private computer;* that is each user can log on to the system and operate largely independently of other users. For example, each user has their own disk storage space (home directory). In addition, users can run programs, each of which gets a share of the CPU and operates in its own virtual address space, and these programs can independently access devices and transfer information over the network. The kernel resolves potential conflicts in accessing hardware resources, so users and processes are generally unaware of the conflicts.
 
-### 2.1.2. Kernel mode and User mode
+#### 2.1.2. Kernel mode and User mode
 
 - Modern processor architectures typically allow the CPU to operate in at least two different modes: `user mode` and `kernel mode`.
   - **Hardware instructions allow switching from one mode to the other.**
@@ -46,7 +46,7 @@
   - and initiating device I/O operations.
 - By takin advantage of this hardware design to place the operating system in kernel space, operating system implementers can ensure that user processes are not able to access the instructions and data structures of the kernel, or to perform operations that would adversely affect the operation of the system.
 
-### 2.1.3. Process versus kernel views of the system
+#### 2.1.3. Process versus kernel views of the system
 
 - A running system typically has numerous processes. For a process, many things happen asynchronously.
 
@@ -68,3 +68,12 @@
 - 7. Lastly, the kernel (device drivers) performs all direct communication with input and output devices, transferring information to and from user processes as required.
 
 - When we say things such as `a process can create another process`, `a process can create a pipe`, `a process can write data to a file`, and `a process can terminate by calling exit()`. Remember, however, that the kernel mediates all such actions, and these statements are just shorthand for **A process can `request that the kernel` create another process**, and so on.
+
+### 2.2. The Shell
+
+- A shell is a special-purpose program designed to read commands typed by a user and execute appropriate programs in response to those commands.
+- A number of important shells have appeared over time:
+  - 1. Bourne shell (sh).
+  - 2. C shell (csh).
+  - 3. Korn shell (ksh).
+  - 4. Bourne again shell (bash): This shell is the GNU project’s re-implementation of the Bourne shell.
