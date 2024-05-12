@@ -45,3 +45,26 @@
   - accessing the memory-management hardware,
   - and initiating device I/O operations.
 - By takin advantage of this hardware design to place the operating system in kernel space, operating system implementers can ensure that user processes are not able to access the instructions and data structures of the kernel, or to perform operations that would adversely affect the operation of the system.
+
+### 2.1.3. Process versus kernel views of the system
+
+- A running system typically has numerous processes. For a process, many things happen asynchronously.
+
+- 1. An executing process doesn't know when it will next timeout, which other processes will then be scheduled for the CPU, or when it will next be scheduled.
+- 2. The delivery of signals and the occurrence of inter-process communication events are mediated by the kernel, and can occur at any time for a process. Many things happen transparent for a process.
+- 3. A process doesn't know where it is located in RAM or, in general whether a particular part of its memory space is currently resident in memory or held in swap area (a reserved area of disk space ued to supplement the computer's RAM).
+- 4. Similarly, a process doesn't know where on the disk drive the files it accesses are being held; it simply refers to the files by name.
+- 5. A process operates in isolation; it can't directly communicate with another process.
+- 6. A process can't itself create a new process or even end its own existence.
+- 7. Finally, a process can't communicate directly with the input and output devices attached to the computer.
+
+- By contrast, a running system has one kernel that knows and controls everything. The kernel facilitates the running of all processes on the system.
+- 1. The kernel decides which process will next obtain access to the CPU, when it will do so, and for how long.
+- 2. The kernel maintains data structures containing information about all running processes and updates these structures as processes are created, change state and terminate.
+- 3. The kernel maintains all of the low-level data structures that enable the filenames used by programs to be translated into physical locations on the disk.
+- 4. The kernel also maintains data structures that map the virtual memory of each process into the physical memory of the computer and swap areas on disk.
+- 5. All communication between processes is done via mechanisms provided by the kernel.
+- 6. In response to requests from processes, the kernel creates new processes and terminates existing processes.
+- 7. Lastly, the kernel (device drivers) performs all direct communication with input and output devices, transferring information to and from user processes as required.
+
+- When we say things such as `a process can create another process`, `a process can create a pipe`, `a process can write data to a file`, and `a process can terminate by calling exit()`. Remember, however, that the kernel mediates all such actions, and these statements are just shorthand for **A process can `request that the kernel` create another process**, and so on.
