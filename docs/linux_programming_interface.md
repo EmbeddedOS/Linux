@@ -452,3 +452,14 @@ ls -l | sort -k5n | less
   - messages queue.
   - semaphores.
 - Even though they do strictly qualify as realtime.
+
+### 2.19. The `/proc` File System
+
+- Linux provides a `/proc` file system, which consists of a set of directories and files mounted under `/proc` directory.
+- The `/proc` file system is a **VIRTUAL** file system that provides an interface to kernel data structures in a form that looks like files and directories on a file system.
+
+- This provides an easy mechanism for viewing and changing various system attributes.
+
+- In addition, a set of directories with names of the form `/proc/PID` where PID is process ID, allows us to view information about each running process.
+
+- The content of `/proc` files are generally in human-readable text form and can parsed by shell script. A program can easy to open, read, write the desired files.
