@@ -429,3 +429,26 @@ ls -l | sort -k5n | less
   - 1. **Efficiency**: It may be cheaper to provide one instance of resources that is managed by a server than to provide the same resource locally on every computer.
   - 2. **Control, coordination, and security**.
   - 3. **Operations in a heterogeneous environment**: In a network, the various clients and the server, can be running on different hw and OS platforms.
+
+### 2.18. Realtime
+
+- `Realtime applications` are those that need to respond in a timely fashion to input. Frequently, such input comes from an external sensor or a specialized input device, and output takes the form of controlling some external hw.
+  - For example: back ATM, automated assembly lines, aircraft navigation systems.
+
+- Although many realtime applications require rapid responses to input, the defining factor is that the response is guaranteed to be delivered within a certain deadline time after the triggering event.
+
+- The provision of realtime, responsiveness, especially where short response times are demanded, requires support from the underlying OS. Most OSes don't natively provide such support because the requirements of real responsiveness can conflict with the requirements of multi-user time-sharing OSes.
+
+- Traditional UNIX implementations are **NOT** realtime OSes, although realtime variants have been devised. Real time variants of Linux have also been created, and recent Linux Kernels are moving toward full native support for real time applications.
+
+- `POSIX.1b` defined a number of extensions to `POSIX.1` for the support of real-time applications. These include:
+  - asynchronous I/O.
+  - shared memory.
+  - memory mapped files.
+  - memory locking.
+  - realtime clocks and timers.
+  - alternative scheduling policies.
+  - realtime signals.
+  - messages queue.
+  - semaphores.
+- Even though they do strictly qualify as realtime.
