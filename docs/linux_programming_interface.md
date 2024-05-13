@@ -325,3 +325,20 @@ export VAR="Hello world"
 
 - The fact that a shared lib contains the sole compiled version of a function saves disk space. It also greatly eases the job of ensuring that programs employ the newest version of a function.
 - Simply rebuilding the shared lib with the new function definition causes existing programs to automatically use the new definition wne they are next executed.
+
+### 2.10. Inter-process Communication and Synchronization
+
+- A running Linux system consists of numerous processes, many of which operate independently of each other. Some processes, however, cooperate to achieve their intended purposes, and these processes need methods of communicating with one another and synchronizing their actions.
+
+- One way for processes to communicate is by reading and writing information in disk files. However, for many applications, this is too slow and inflexible.
+
+- Therefore, Linux, like all modern UNIX implementations, provides a rich set of mechanisms for IPC, including the following:
+  - 1. **signals**, which are used to indicate that an event has occurred.
+  - 2. **pipes** (familiar to shell users as the `|` operator) and **FIFOs**, which can be used to transfer data bw processes.
+  - 3. **sockets**, which can be used to transfer data from one process to another, either on the same host computer or on different hosts connected by a network;
+  - 4. **file locking**, which allows a process to lock regions of a file in order to prevent other processes from reading or updating the file contents.
+  - 5. **message queues**, which are used to exchange messages (packets of data) bw processes.
+  - 6. **semaphores**, which are used to synchronize the actions of processes; and
+  - 7. **shared memory**, which allows two or more processes to share a piece of memory. When one process changes the contents of the shared memory, all of the other processes can immediately see the changes.
+
+- The wide variety of IPC mechanisms on UNIX systems, with sometimes overlapping functionality, is in part due to their evolution under different variants of the UNIX system and the requirements of various standard. For example, FIFOs and UNIX domain sockets essentially perform the same function of allowing unrelated processes on the same system to exchange data. Both exists in modern UNIX system because FIFOs came from System V, while sockets came from BSD.
