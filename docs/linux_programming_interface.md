@@ -150,3 +150,127 @@
 
 - To perform file I/O, C programs typically employ I/O functions contained in the standard C library. This set of functions, referred to as the `stdio` library, includes `fopen()`, `fclose()`, `scanf()`, `printf()`, `fgets()`, `fputs()` and so on. The `stdio` functions are layered on top of the I/O system calls (`open()`, `close()`, `read()`, `write()` and so on).
 
+### 2.6. Programs
+
+- Programs normally exist in two forms. The first form is `source code`, human-readable. To be executed, source code must be converted to the second form: `binary` machine language instructions that the computer can understand.
+- The two meanings of the term `program` are normally considered synonymous.
+
+#### 2.6.1. Filters
+
+- A `filter` is the name often applied to a program that reads its input from `stdin`, performs some transformation of that input, and writes the transformed data to `stdout`. Examples of filters include `cat`, `grep`, `tr`, `sort`, `wc`, `sed`, and `awk`.
+
+#### 2.6.2. Command-line arguments
+
+- In C, programs can access the command-line arguments, the words that are supplied in the command line when the program is run. To access the command arguments, the main function of the program is declared as follows:
+
+```C
+int main(int argc, char *argv[])
+```
+
+### 2.7. Processes
+
+- Put most simply, a `process` is an instance of an executing program. When a program is executed, the kernel loads the code of the program into virtual memory, allocates space for program variables, and sets up kernel bookkeeping data structures to record various information (such as process ID, termination status, user IDs, and group IDs) about the process.
+
+- From a kernel point of view, processes are the entities among which the kernel must share the various resource of the kernel.
+- For resources that are limited, such as memory, the kernel initially allocates some amount of the resource to the process, and adjusts this allocation over the lifetime of the process in responsible to the demands of the process and overall system demand for that resource.
+- When process terminates, all such resources are released for reuse by other processes.
+- Other resources, such as the CPU and network bandwidth, are renew-able, but must be shared equitably among all processes.
+
+#### 2.7.1. Process memory layout
+
+- A process is logically divided into the following parts, known as `segments`:
+  - 1. `Text`: the instructions of the program.
+  - 2. `Data`: the static variables used by the program.
+  - 3. `Heap`: an area from which programs can dynamically allocate extra memory.
+  - 4. `Stack`: a piece of memory that grows and shrinks as functions are called and return and that is used to allocate storage for local variables and function call linkage information.
+
+#### 2.7.2. Process creation and program execution
+
+- A process can create a new process using `fork()` system call. The process that calls `fork()` is referred to as the `parent process`, and the new process is referred to as `child process`.
+
+- The kernel creates the child process by making a duplicate of the parent process. The child inherits copies of the parent's data, stack, and heap segments, which it may then modify independently of the parent's copies. (The program text, which is placed in memory marked as read-only, is shared by the two processes).
+
+- The child process goes on either to execute a different set of functions in the same code as the parent, or frequently, to use the `execve()` system call to load and execute an entirely new program. An `execve()` call destroys the existing text, data, stack and heap segments, replacing them with new segments based on the code of the new program.
+
+#### 2.7.3. Process ID and parent process ID
+
+- Each process unique integer `process identifier (PID)`. Each process also has a `parent process identifier (PPID)` attribute, which identifies the process that requested the kernel to create this process.
+
+#### 2.7.4. Process termination and termination status
+
+- A process can terminate in one of two ways:
+  - 1. By requesting its own termination using the `_exit()` system call (or the related `exit()` lib function),
+  - 2. Or by being killed by the delivery of a signal.
+
+- In either case, the process yields a `termination status`, a small non-negative integer value that is available for inspection by the parent process using the `wait()` system call.
+
+- In the case of a call to `_exit()`, the process explicitly specifies its own termination status.
+- If a process is killed by a signal, the termination status is set according to the type of signal that caused the death of the process.
+
+- By convention, a termination status of 0 indicates that process succeeded, and a nonzero status indicates that some error occurred.
+
+- Most shells make the termination status of the last executed program available via a shell variable named `$?`.
+
+#### 2.7.5. Process user and group identifiers (credentials)
+
+- Each process has a number of associated user IDs (UIDs) and group IDs (GIDs). These include:
+  - `Real user ID` and `real group ID`: These identify the user and group to which the process belongs. A new process inherits these IDs from its parent. A login shell gets its real user ID and real group ID from the corresponding fields in the system password file.
+  - `Effective user ID` and `Effective group ID`: These two IDs (in conjunction with the supplementary groups IDs discussed in a moment) are used in determining the permission that process has when accessing protected resources such as files and inter-process communication objects.
+    - Typically, `Effective user IS` has the same values as the corresponding real IDs.
+
+#### 2.7.6. Privileged Processes
+
+- Traditionally, on Unix systems, a `privileged process` is one whose `effective user ID` is 0 (superuser).
+- A process may be privileged because it was created by another privileged process - for example, by a login shell started by root (superuser).
+- Another way a process may become privileged is via the set-user-ID mechanism, which allows a process to assume an effective user ID that is the same as the user ID of the program file that it is executing.
+
+#### 2.7.7. Capabilities
+
+- Linux divides the privileges traditionally accorded to the super user into a set of distinct units called `capabilities`. Each privileged operation is associated with a particular capability, and a process can perform an operation only if it has the corresponding capability.
+
+#### 2.7.8. The `init` process
+
+- When booting the system, the kernel creates a special process called `init`, the `parent of all processes`, which is derived from the program file (`sbin/init`).
+
+- All processes on the system are created (using `fork()`) either by `init` or by one of its descendants.
+
+- The init process always has the process ID `1` and runs with superuser privileges.
+
+- The `init` process **CAN NOT** be killed (not even by the superuser), and it terminates only when the system is shutdown.
+
+- **The main task of `init` is to create and monitor a range of processes required by a running system**.
+
+#### 2.7.9. Daemon Processes
+
+- A `daemon` is a special-purpose process that is created and handled by the system in the way as other processes, but which is distinguished by the following characteristics:
+  - 1. It is long-lived. A daemon process is often started at system boot and remains in existence until the system is shutdown.
+  - 2. It runs in the background, and has no controlling terminal from which it can read input or to which it can write output.
+
+- Examples of daemon processes include `syslogd`, which records messages in the system log, and `httpd`, which serves web pages.
+
+#### 2.7.10. Environment list
+
+- Each process has an `environment list`, which is a set of `environment variables` that are maintained within the user-space memory of the process.
+- Each element of this list consists of a name an associated value.
+
+- When a new process is created via `fork()`, it inherits a copy of it's parent's environment. Thus, the environment provides a mechanism for a parent process to communicate information to a child process.
+
+- When a process replaces the program that it is running `exec()`, the new program either inherits the environment used by the old program or receives a new environment specified as part of the `exec()` call.
+
+- Environment variables are created with the `export` command in most shells, as in the following example:
+
+```bash
+export VAR="Hello world"
+```
+
+- C program can access the environment using an external variable `char **environ`.
+
+- Environment variables are used for variety of purposes. For example, the shell defines and uses a range of variables that can be accessed by scripts and programs executed from the shell.
+
+#### 2.7.11. Resource limits
+
+- Each process consumes resources, such as open files, memory and CPU time. Using `setlimit()` system call, a process can establish upper limits on its consumption of various resources.
+
+- When a new process is created with `fork()`, it inherits copies of its parent's resource limit settings.
+
+- The resource limits of the shell can be adjusted using the `ulimit` command. These limit settings are inherited by the child processes that shell creates to execute commands.
