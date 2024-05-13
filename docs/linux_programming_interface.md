@@ -149,3 +149,4 @@
 #### 2.5.2. The `stdio` library
 
 - To perform file I/O, C programs typically employ I/O functions contained in the standard C library. This set of functions, referred to as the `stdio` library, includes `fopen()`, `fclose()`, `scanf()`, `printf()`, `fgets()`, `fputs()` and so on. The `stdio` functions are layered on top of the I/O system calls (`open()`, `close()`, `read()`, `write()` and so on).
+
