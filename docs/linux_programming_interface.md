@@ -408,3 +408,11 @@ ls -l | sort -k5n | less
 - The key point about a `pseudo-terminal` is that the slave device provides an interface that behaves like a terminal, which makes it possible to connect a terminal-oriented program to the slave device and then use another program connected to the master device to drive the terminal-oriented program. Output written by the driver program undergoes the usual input processing performed by the terminal driver and is then passed as input to the terminal-oriented program connected to the slave.
 
 - Pseudo-terminal are used in a variety of applications, most notably in the implementation of terminal windows provided under an X window system login and in applications providing network login services, such as `telnet` and `ssh`.
+
+### 2.16. Date and time
+
+- Two type of time are of interest to a process:
+  - 1. `real time` is measured either from some standard point (calendar time) or from some fixed point. On Unix systems, calendar time us measured ni seconds since midnight on the 01/01/1970. This date, which is close to the birth of the UNIX system, is referred to as the `Epoch`.
+  - 2. `Process time`, also called `CPU time`, is the total amount of CPU time that a process has used since starting. It's divided into `system CPU time` (kernel mode) and `user CPU time` (user mode).
+
+- `time` command display all of them.
