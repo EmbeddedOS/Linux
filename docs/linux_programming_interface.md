@@ -131,3 +131,21 @@
 #### 2.4.4. File ownership and permissions
 
 - Each file has an associated user IS and group ID that define the owner of the file and the group to which it belongs. The ownership of a file is used to determine the access rights available to users of the file.
+
+### 2.5. File I/O model
+
+- One of the distinguishing features of the I/O model in Unix systems is the concept of `universality of I/O`. This means that the same system calls (`open()`, `read()`, `write()`, `close()` and so on) are used to perform I/O on all types of files, including devices. ( The kernel translates the application's I/O requests into appropriate file-system or device-driver operations that perform I/O on the target file or device).
+- Thus, a program employing these system calls will work on any type of file.
+
+#### 2.5.1. File descriptors
+
+- The I/O system calls refer to open files using a `file descriptor`, a (usually small) non-negative integer.
+- A file descriptor is typically obtained by a call to `open()`, which takes a pathname argument specifying a file upon which I/O is to be performed.
+- Normally, a process inherits three open file descriptors when it is started by the shell:
+  - 1. descriptor 0 is standard input.
+  - 2. descriptor 1 is standard output.
+  - 3. descriptor 2 is standard error.
+
+#### 2.5.2. The `stdio` library
+
+- To perform file I/O, C programs typically employ I/O functions contained in the standard C library. This set of functions, referred to as the `stdio` library, includes `fopen()`, `fclose()`, `scanf()`, `printf()`, `fgets()`, `fputs()` and so on. The `stdio` functions are layered on top of the I/O system calls (`open()`, `close()`, `read()`, `write()` and so on).
