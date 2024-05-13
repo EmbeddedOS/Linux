@@ -377,3 +377,16 @@ export VAR="Hello world"
 
 - Furthermore, a multi-threaded application can transparently take advantage of the possibility for parallel processing on multi-processor hardware.
 
+### 2.13. Process groups and shell job control
+
+- Each program executed by the shell is started in a new process. For example, the shell creates three processes to execute the following pipeline of commands:
+
+```bash
+ls -l | sort -k5n | less
+```
+
+- All major shell, provide an interactive feature called `job control`, which allows the user to simultaneously execute and manipulate multiple commands and pipelines.
+- In job control shells, all of the processes in a pipeline are placed in a new `process group` or `job`.
+- Each process in a process group has the same integer `process group identifier`, which is the same as the process ID of one of the processes in the group, termed the `process group leader`.
+
+- The kernel allows various actions, notably the delivery of signals, to be performed on all members of a process group. `Job-control` shells use this feature to allow the user to suspend or resume all of the processes in a pipeline
