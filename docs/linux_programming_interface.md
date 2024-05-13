@@ -81,3 +81,17 @@
 ### 2.3. Users and Groups
 
 - Each user on the system is uniquely identified, and users may belong to groups.
+
+- Users:
+  - Every user has a unique `login name` (username) and a corresponding numeric user ID (UID).
+  - For each user, these are defined by a line in the system *password file*, `/etc/passwd`, which includes the additional information:
+    - 1. **Group ID**: The numeric group ID of the first of the groups of which the user is a member.
+    - 2. **Home Directory**: the initial directory into which the user is placed after logging in.
+    - 3. **Login Shell**: the name of the program to be executed to interpret user commands.
+
+- Groups:
+  - For administrative purposes - in particular, for controlling access to files and other system resources - it is useful to organize user into `groups`.
+
+- Superuser:
+  - One user, known as the `superuser`, has special privileges within the system. The superuser account has the user ID 0, and normally has the login name `root`.
+  - On typical Unix system, the superuser bypasses all permission checks in the system.
