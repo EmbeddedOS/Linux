@@ -274,3 +274,23 @@ export VAR="Hello world"
 - When a new process is created with `fork()`, it inherits copies of its parent's resource limit settings.
 
 - The resource limits of the shell can be adjusted using the `ulimit` command. These limit settings are inherited by the child processes that shell creates to execute commands.
+
+### 2.8. Memory Mappings
+
+- The `mmap()` system call creates a new `memory mapping` in the calling process's virtual address space.
+
+- Mappings fall into two categories:
+  - 1. A `file mapping` maps a region of a file into the calling process's virtual memory. Once mapped, the file's contents can be accessed by operations on the bytes in the corresponding memory region. The pages of the mapping are automatically loaded from the file as required.
+  - 2. By contrast, an `anonymous mapping` doesn't have a corresponding file. Instead, the pages of the mapping are initialized to 0.
+
+- The memory in one process's mapping may be shared with mappings in other processes. This can occur either because two processes map the same region of a file or because a child process created by `fork()` inherits a mapping from its parent.
+
+- When two or more processes share the same pages, each process may see the changes made by other processes to the contents of the pages, depending on whether the mapping is created as `private` or `shared`.
+  - When a mapping is `private`, modifications to the contents of the mapping are not visible to other processes and are not carried through to the underlying file.
+  - When a mapping is `shared`, modifications to the contents of the mapping are visible to other processes sharing the same mapping and are carried through to the underlying file.
+
+- Memory mappings serve a variety of purposes:
+  - 1. Including initialization of a process's text segment from the corresponding segment of an execute file,
+  - 2. allocation of new (zero-filled) memory,
+  - 3. file I/O (memory-mapped I/O),
+  - 4. and inter-process communication (via a shared mapping).
