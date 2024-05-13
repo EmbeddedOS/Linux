@@ -365,3 +365,15 @@ export VAR="Hello world"
 - For most signal types, instead of accepting the default signal action, a program can choose to ignore the signal, or to establish a `signal handler`. A signal handler is a programmer-defined function that is automatically invoked when the signal is delivered to the process. This function performs some action appropriate to the condition that generated the signal.
 
 - In the interval between the time it is generated and the time it is delivered, a signal said to be `pending` for a process. Normally, a pending signal is delivered as soon as the receiving process is next scheduled to run, or immediately of the process is already running. However, it is also possible to `block` a signal by adding it to the process's `signal mask`. If a signal is generated while it is blocked, it remains pending until it is later unlocked.
+
+### 2.12. Threads
+
+- In modern UNIX implementations, each process can have multiple `threads` of execution. One way of envisaging threads is as a set of processes that share the same virtual memory, as well as a range of other attributes.
+- Each thread is executing the same program code and shares the same data area and heap. However, each thread has it own stack containing local variables and function call linkage information.
+
+- Threads can communicate with each other via the global variables that they share. The threading API provides `condition variables` and `mutexes`, which are primitives that enable the threads of a process to communicate and synchronize their actions, in particular, their use of shared variables. Threads can also communicate with one another using the IPC and synchronization mechanism.
+
+- The primary advantages of using threads are that they make it easy to share data (via global variables) bw cooperating threads and that some algorithms transpose more naturally to a multithreaded implementation than to a multi-process implementation.
+
+- Furthermore, a multi-threaded application can transparently take advantage of the possibility for parallel processing on multi-processor hardware.
+
