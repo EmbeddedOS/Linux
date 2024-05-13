@@ -342,3 +342,26 @@ export VAR="Hello world"
   - 7. **shared memory**, which allows two or more processes to share a piece of memory. When one process changes the contents of the shared memory, all of the other processes can immediately see the changes.
 
 - The wide variety of IPC mechanisms on UNIX systems, with sometimes overlapping functionality, is in part due to their evolution under different variants of the UNIX system and the requirements of various standard. For example, FIFOs and UNIX domain sockets essentially perform the same function of allowing unrelated processes on the same system to exchange data. Both exists in modern UNIX system because FIFOs came from System V, while sockets came from BSD.
+
+### 2.11. Signals
+
+- Although we listed them as a method of IPC in the previous section, signals are more usually employed in a wide range of other contexts, and so deserve a longer discussion.
+
+- Signals are often described as `software interrupt`. The arrival of a signal informs a process that some event or exceptional condition has occurred. There are various types of signals, each of which identifies a different event or condition. Each signal type is identified by a different integer, defined with symbolic names of the form `SIGxxxx`.
+
+- Signals are sent to a process by the kernel, by another process (with suitable permissions), or by the process itself. For example, the kernel may send a signal to a process when one of the following occurs:
+  - 1. The user typed the `interrupt` character (usually `Control-C`) on the key board.
+  - 2. one of the process's children has terminated.
+  - 3. a timer (alarm clock) set by the process has expired;
+  - 4. The process attempted to access an invalid memory address.
+
+- Within the shell, the `kill` command can be used to send a signal to a process. The `kill()` system call provides the same facility within programs.
+
+- When a process receives a signal, it takes one of the following actions, depending on the signal:
+  - 1. It ignore the signal.
+  - 2. It is killed by the signal;
+  - 3. It is suspended until later being resumed by receipt of a special-purpose signal.
+
+- For most signal types, instead of accepting the default signal action, a program can choose to ignore the signal, or to establish a `signal handler`. A signal handler is a programmer-defined function that is automatically invoked when the signal is delivered to the process. This function performs some action appropriate to the condition that generated the signal.
+
+- In the interval between the time it is generated and the time it is delivered, a signal said to be `pending` for a process. Normally, a pending signal is delivered as soon as the receiving process is next scheduled to run, or immediately of the process is already running. However, it is also possible to `block` a signal by adding it to the process's `signal mask`. If a signal is generated while it is blocked, it remains pending until it is later unlocked.
