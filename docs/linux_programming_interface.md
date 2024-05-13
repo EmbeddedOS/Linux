@@ -390,3 +390,13 @@ ls -l | sort -k5n | less
 - Each process in a process group has the same integer `process group identifier`, which is the same as the process ID of one of the processes in the group, termed the `process group leader`.
 
 - The kernel allows various actions, notably the delivery of signals, to be performed on all members of a process group. `Job-control` shells use this feature to allow the user to suspend or resume all of the processes in a pipeline
+
+### 2.14. Sessions, Controlling Terminals, and Controlling Processes
+
+- A `session` is a collection of process groups (jobs). All of the processes in a session have the same `session identifier`. A `session leader` is the process that created the session, and its process ID becomes the session ID.
+
+- Sessions are used mainly by job-control shells. All of the process groups created by a job-control shell belong to the same session as the shell, which is the session leader.
+
+- Sessions usually have an associated `controlling terminal`. The controlling terminal is established when the session leader process first opens a terminal device. For a session created by an interactive shell, this is the terminal at which the user logged in. A terminal may be the controlling terminal of at most one session.
+
+- As a consequence of opening the controlling terminal, the session leader becomes the `controlling process` for the terminal. The controlling process receives a `SIGHUP` signal if a terminal disconnect occurs.
