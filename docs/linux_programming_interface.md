@@ -294,3 +294,34 @@ export VAR="Hello world"
   - 2. allocation of new (zero-filled) memory,
   - 3. file I/O (memory-mapped I/O),
   - 4. and inter-process communication (via a shared mapping).
+
+### 2.9. Static and Shared Libraries
+
+- An `object library` is a file containing the compiled object code for a (usually logically related) set of functions that may be called from application programs.
+
+- Placing code for a set of functions in a single object library eases the tasks of program creation and maintenance. Modern UNIX systems provide two types of object libraries:
+  - `static` and `shared`.
+
+#### 2.9.1. Static libraries
+
+- Static lib (sometimes also known as `archives`) were the only type of library on early UNIX systems.
+- A static library is essentially a structured bundle of compiled object modules.
+- To use functions from a static lib, we specify that library in the link command used to build a program.
+
+- After resolving the various function references from the main program to the modules in the static library, the linker extracts copies of the required object modules from the library and copies these into the resulting executable file. We say that such a program is `statically linked`.
+
+- The fact that each statically linked program includes its own copy of the object modules required from the library creates a number of disadvantages.
+- 1. One is that the duplication of object code in different executable files wastes disk space.
+- 2. A corresponding waste of memory occurs when statically linked programs using the same library function are executed at the same time.
+- 3. Each program requires its own copy of the function to reside in memory.
+- 4. Additionally, if a library function requires modification, then after recompiling that function and adding it to the static lib, all applications that need to use the updated function must be relinked against the lib.
+
+#### 2.9.2. Shared lib
+
+- Shared libs were design to address the problems of statics.
+- If a program is linked against a shared lib, then, instead of copying object modules from the lib into the executable, the linker just writes a record into the executable to indicate that at runtime the executable needs to use that shared lib.
+- When the executable is loaded into memory at runtime, a program called the **dynamic linker** ensures that the shared libraries required by the executable are found and loaded into memory, and performs run-time linking to resolve the function calls in the executable to the corresponding definitions in the shared libs.
+- At runtime, only a single copy of the code of the code of the shared lib needs to be resident in memory; all running programs can use that copy.
+
+- The fact that a shared lib contains the sole compiled version of a function saves disk space. It also greatly eases the job of ensuring that programs employ the newest version of a function.
+- Simply rebuilding the shared lib with the new function definition causes existing programs to automatically use the new definition wne they are next executed.
