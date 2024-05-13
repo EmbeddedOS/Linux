@@ -416,3 +416,16 @@ ls -l | sort -k5n | less
   - 2. `Process time`, also called `CPU time`, is the total amount of CPU time that a process has used since starting. It's divided into `system CPU time` (kernel mode) and `user CPU time` (user mode).
 
 - `time` command display all of them.
+
+### 2.17. Client-Server Architecture
+
+- A client-server application is one that is broken into two component processes:
+  - 1. a `client`, which asks the server to carry out some service by sending it a request message;
+  - 2. a `server`, which examines the client's request, performs appropriate actions and then sends a response message back to the client.
+
+- Sometimes, the client interact with users, and server interact with resources.
+
+- Encapsulating a service within a single server is useful for a number of reasons, such as following:
+  - 1. **Efficiency**: It may be cheaper to provide one instance of resources that is managed by a server than to provide the same resource locally on every computer.
+  - 2. **Control, coordination, and security**.
+  - 3. **Operations in a heterogeneous environment**: In a network, the various clients and the server, can be running on different hw and OS platforms.
