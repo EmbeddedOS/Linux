@@ -400,3 +400,11 @@ ls -l | sort -k5n | less
 - Sessions usually have an associated `controlling terminal`. The controlling terminal is established when the session leader process first opens a terminal device. For a session created by an interactive shell, this is the terminal at which the user logged in. A terminal may be the controlling terminal of at most one session.
 
 - As a consequence of opening the controlling terminal, the session leader becomes the `controlling process` for the terminal. The controlling process receives a `SIGHUP` signal if a terminal disconnect occurs.
+
+### 2.15. Pseudo-terminals
+
+- A `pseudo-terminal` is a pair of connected virtual devices, known as the `master` and `slave`. This device pair provides an IPC channel allowing data to be transferred in both directions bw the two devices.
+
+- The key point about a `pseudo-terminal` is that the slave device provides an interface that behaves like a terminal, which makes it possible to connect a terminal-oriented program to the slave device and then use another program connected to the master device to drive the terminal-oriented program. Output written by the driver program undergoes the usual input processing performed by the terminal driver and is then passed as input to the terminal-oriented program connected to the slave.
+
+- Pseudo-terminal are used in a variety of applications, most notably in the implementation of terminal windows provided under an X window system login and in applications providing network login services, such as `telnet` and `ssh`.
