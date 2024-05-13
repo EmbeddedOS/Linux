@@ -95,3 +95,39 @@
 - Superuser:
   - One user, known as the `superuser`, has special privileges within the system. The superuser account has the user ID 0, and normally has the login name `root`.
   - On typical Unix system, the superuser bypasses all permission checks in the system.
+
+### 2.4. Single directory Hierarchy, Directories, Links, and Files
+
+- The kernel mains a single hierarchical directory structure to organize all files in the system.
+- At the base of this hierarchy is the `root directory`, named `/` (slash). All files and directories and children or further removed descendants of the root directory.
+
+#### 2.4.1. File types
+
+- Within the filesystem, each file is marked with a `type`, indicating what kind of file it is.
+
+- One of these file type denotes ordinary data files, which are usually called `regular` or `plain` files to distinguish them from other file types. These other file types include devices, pipes, sockets, directories, and symbolic links.
+
+- The term `file` is commonly used to denote a file of any type, not just a regular file.
+
+#### 2.4.2. Directories and links
+
+- **A directory is special file** whose contents take the form of a table of filenames coupled with references to the corresponding files. This filename-plus-reference association is called a `link`, and files may have multiple links, and thus multiple names, in the same or in different directories.
+
+- Directories may contain links both to files and to other directories.
+
+- Every directory contains at least two entries: `.` (dot), which is a link to the directory itself, and `..` (dot-dot), which is a link to its `parent directory`.
+
+#### 2.4.3. Symbolic links
+
+- Like a normal link, a `symbolic link` provides an alternative name for a file. But whereas a normal link is a `filename-plus-pointer` entry in a directory list, **a symbolic link is a specially marked file containing the name of another file**. This later file is often called the target of the symbolic link, and it is common to say that the symbolic link `points` or `refers` to the target file.
+
+- When a pathname is specified in a system call, in most circumstances, the kernel automatically *dereferences* each symbolic link in the pathname, replace it with the filename to which it points. This process may happen recursively if the target of a symbolic.
+
+- If a symbolic link refers to a file that doesn't exist, it is said to be a `dangling link`.
+
+- hard-link is normal link.
+- soft-link is symbolic link.
+
+#### 2.4.4. File ownership and permissions
+
+- Each file has an associated user IS and group ID that define the owner of the file and the group to which it belongs. The ownership of a file is used to determine the access rights available to users of the file.
