@@ -634,3 +634,7 @@ int kill(pid_t pid, int sig);
 - NOTE:
   - if `pid` equal 0, the signal is sent to every process in the same process group as the calling process, include calling process itself.
   - If `pid` less than -1, the signal is sent to all of the processes in the process group whose ID equals the absolute value of `pid`.
+
+### 20.6. Checking for existence of a process
+
+- The `kill()` system can serve another purpose. If the `sig` argument os specified as 0, then no signal is sent. Instead, `kill()` merely performs error checking to see if the process can be signaled. In other way, we can use this feature to check the PID exist.
