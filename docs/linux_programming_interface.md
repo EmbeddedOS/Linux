@@ -574,3 +574,49 @@ handler(int sig)
   /* Code for the handler */
 }
 ```
+
+- The return value of `signal()` is the previous disposition of the signal.
+- NOTE: we can make the prototype for `signal()` much more comprehensive by using the following type definition for a pointer to a signal handler function:
+
+```C
+typedef void (*sig_handler_t)(int);
+```
+
+- This enable us to rewrite the prototype for `signal()` as follows:
+
+```C
+sig_handler_t signal(int sig, sig_handler_t handler);
+```
+
+### 20.4. Introduction to Signal Handlers
+
+- A `signal handler` (also called a `signal catcher`) is a function that is called when a specified signal is delivered to a process.
+
+- Invocation of a signal handler may interrupt the main program flow at any time; the kernel calls the handler on the process's behalf, and when the handler returns, execution of the program resumes at the point where the handler interrupted it.
+
+```text
+                Main program
+             ____________________________
+            | start of program      ||   |
+            |                      Flow  |
+            |                       Of   |
+            |                   Execution|
+            |                       ||   |
+            |                       \/   |               __signal_handler___
+ Deliver    |                       || //==>====(2)=====|==\\ (3)           |
+of signal   | instruction m         ||// |              |   Code of signal  |
+  (1)-------|-->                     <<  |              |   handler is      |
+            | instruction m + 1     ||\\ |              |   executed        |
+            | ...                   || \\==<====(4)=====|==// return        |
+            |                       ||   |              |___________________|
+            | exit()                \/   |
+            |____________________________|
+```
+
+- (1) Deliver of signal.
+- (2) Kernel calls signal handler on behalf or process.
+- (3) Code of signal handler is executed.
+- (4) Program resumes at point of interruption.
+
+- When the kernel invokes a signal handler, it passes the number of the signal that caused the invocation as an integer argument to the handler.
+- If a signal handler catches only one type of signal, then this argument is of little use. We can, however establish the same handler to catch different types of signals and use this argument to determine which signal caused the handler to be invoked.
