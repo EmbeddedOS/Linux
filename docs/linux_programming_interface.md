@@ -638,3 +638,34 @@ int kill(pid_t pid, int sig);
 ### 20.6. Checking for existence of a process
 
 - The `kill()` system can serve another purpose. If the `sig` argument os specified as 0, then no signal is sent. Instead, `kill()` merely performs error checking to see if the process can be signaled. In other way, we can use this feature to check the PID exist.
+
+### 20.7. Other ways of sending signals: `raise()` and `killpg()`
+
+- Sometimes, it is useful for a process to send a signal to itself.
+
+```C
+#include <signal.h>
+
+int raise(int sig);
+```
+
+- In a single-threaded program, a call to `raise()` is equivalent to the following call to `kill()`:
+
+```C
+kill(getpid(), sig);
+```
+
+- On a system that supports threads, `raise(sig)` is implemented as:
+
+```C
+pthread_kill(pthread_self(), self);
+```
+
+- When a process send itself a signal using `raise()` (or `kill()`) the signal is delivered immediately.
+
+- The killpg() function sends a signal to all of the members of a process group.
+
+```C
+#include <signal.h>
+int killpg(pid_t pgrp, int sig);
+```
