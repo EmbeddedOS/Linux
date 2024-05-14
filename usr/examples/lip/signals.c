@@ -22,5 +22,9 @@ int main()
 
     printf("PID: %d\n", getpid());
 
+    /* Wait for sig interrupt from outside. */
     while (!received_sigint);
+
+    /* raise a terminate signal by itself. */
+    raise(SIGTERM);
 }
