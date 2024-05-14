@@ -463,3 +463,51 @@ ls -l | sort -k5n | less
 - In addition, a set of directories with names of the form `/proc/PID` where PID is process ID, allows us to view information about each running process.
 
 - The content of `/proc` files are generally in human-readable text form and can parsed by shell script. A program can easy to open, read, write the desired files.
+
+## 20. Signals: Fundamental concepts
+
+- This section covers the following topics:
+  - 1. The various different signals and their purposes.
+  - 2. The circumstances in which the kernel may generate a signal for a process, and the system calls that one process may use to send a signal to another process;
+  - 3. How a process responds to a signal by default, and the means by which a process can change its response to a signal, in particular, through the use of a signal handler, a programmer-defined function that is automatically invoked on receipt of a signal.
+  - 4. The use of a process signal mask to block signals, and the associated notion of pending signals;
+  - 5. How a process can suspend execution and wait for the delivery of a signal.
+
+### 20.1. Concepts and Overview
+
+- A`signal` is a notification to a process that an event has occurred. Signals are sometimes describes as `software interrupts`. Signal are analogous to hardware interrupts in that they interrupt the normal flow of execution of a program; in most cases, it is not possible to predict exactly a signal will arrive.
+
+- 1. One process can send a signal to another. In this use, signals can be employed as a synchronization technique, or event as a primitive form of IPC.
+- 2. It is also possible for a process to send a signal itself.
+- 3. However, the usual source of many signals sent to a process is the kernel. Among the types of events that cause the kernel to generate a signal for a process are the following:
+  - 1. A hardware exception occurred, meaning that the hw detected **A FAULT** condition that was notified to the kernel, which in turn sent a corresponding signal to the process concerned. Examples of hw exceptions include executing a malformed machine-language instruction, dividing by 0, or referencing a part of memory that is inaccessible.
+  - 2. The user typed one of the terminal special characters that generate signals. These characters include the `interrupt` character (usually `Control-C`) and the `suspend` character (usually `Control-Z`).
+  - 3. A software event occurred. For example, input became available on a file descriptor, the terminal window was resized, a timer went off, the process's CPU time limit was exceeded, or a child of this process terminated.
+
+- Each signal is defined as a unique (small) integer, starting sequentially from `1`. These integers are defined in `<signal.h>` with symbolic names of the form `SIGxxxx`.
+  - For example, when the user types the `interrupt` character, `SIGINT` (signal number 2) is delivered to a process.
+
+- The signals fall into two broad categories.
+  - 1. The first set constitutes the `traditional` or `standard` signals, which are used by the kernel to notify processes of events. This from `1` to `31`.
+  - 2. The other of signals consists of the `realtime` signals.
+
+- A signal is said to be `generated` by some event. Once generated, a signal is later `delivered` to a process, which then takes some action in response to the signal. Between the time it is generated and the time it is delivered, a signal is said to be `pending`.
+
+- Normally, a pending signal is delivered to a process as soon as it is next scheduled to run, or immediately if the process is already running (e.g. if the process sent a signal to it self). Sometimes, however, we need to ensure that a segment of code is not interrupted by the delivery of a signal. To do this, we can add a signal to the process's `signal mask` - a set of signals whose delivery is currently `blocked`. If a signal is generated while it is blocked, it remains pending until it is later unblocked. Various system calls allow a process to add and remove signals from its signal mask.
+
+- Upon delivery of a signal, a process carries out one of the following default actions, depending on the signal:
+  - 1. The signal is `ignored`; that is, it is discarded by the kernel and has no effect on the process. (The process never even knows that it occurred).
+  - 2. The process is `terminated` (killed). This is sometimes referred to as `abnormally process termination`, as opposed to the normal process termination that occurs when a process terminates using the `exit()`.
+  - 3. A `core dump file` is generated, and the process is terminated. A core dump file contains an image of the virtual memory of the process, which can be loaded into a debugger in order to inspect the state of the process at the time thar it terminated.
+  - 4. The process is `stopped` - execution of the process is suspended.
+  - 5. Execution of the process is `resumed` after previously being stopped.
+
+- Instead of accepting the default for a particular signal, a program can change the action that occurs when the signal is delivered. This is known as setting the `disposition` of the signal. A program can set one of the following dispositions of the following dispositions:
+  - 1. The `default action` should occur. This is useful to undo an earlier change of the disposition of the signal to something other than its default.
+  - 2. The signal is `ignored`.
+  - 3. A signal handler is executed.
+
+- `signal handler` is a function that performs appropriate tasks in response to the delivery of a signal.
+  - For example, the shell has a handler for the `SIGINT` signal (generated by the `interrupt` character) that causes it to stop what it is currently doing and return control to the main input loop, so that the user is once more presented with the shell prompt.
+
+- Note that it **IS NOT POSSIBLE** to set the disposition of a signal to **TERMINATE** or **DUMP CORE**. The nearest we can get to this is to install a handler for the signal that then calls either `exit()` or `abort()`. The `abort()` function  generates a `SIGABRT` signal for the process, which causes it to dump core and terminate.
