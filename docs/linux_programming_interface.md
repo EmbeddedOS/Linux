@@ -553,3 +553,24 @@ ls -l | sort -k5n | less
   - 36. `SIGWINCH`: In a windowing environment, this signal is sent to the foreground process group when the terminal window size change.
   - 37. `SIGXCPU`: This signal is sent to a process when it exceeds its CPU time resource limit.
   - 38. `SIGXFSZ`: This signal is sent to a process of it attempts to increase the size of a file beyond the process's file size resource limit.
+
+### 20.3. Changing Signal Dispositions: `signal()`
+
+- Unix system provide two way of changing the disposition of a signal: `signal()` and `sigaction()`.
+
+- `sigaction()` provides functionality that is not available with signal(). Because of these portability issues, `sigaction()` is the (strongly) preferred API for establishing a signal handler.
+
+```C
+#include <signal.h>
+void ( *signal(int sig, void (*handler)(int))) (int);
+```
+
+- A signal handler has the following general form:
+
+```C
+void
+handler(int sig)
+{
+  /* Code for the handler */
+}
+```
