@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <stdbool.h>
 #include <unistd.h>
+#include <string.h>
 
 volatile bool received_sigint = false;
 
@@ -21,6 +22,8 @@ int main()
     }
 
     printf("PID: %d\n", getpid());
+    printf("SIGINT information: %s\n", strsignal(SIGINT));
+    printf("SIGTERM information: %s\n", strsignal(SIGTERM));
 
     /* Wait for sig interrupt from outside. */
     while (!received_sigint);

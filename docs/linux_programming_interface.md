@@ -669,3 +669,16 @@ pthread_kill(pthread_self(), self);
 #include <signal.h>
 int killpg(pid_t pgrp, int sig);
 ```
+
+### 20.8. Displaying Signal Description
+
+- Each signal has an associated printable description. These description are listed in the array `sys_siglist`. For example we can check the info by access: `sys_siglist[SIGINT];`.
+
+- The `strsignal()` function is preferable.
+
+```C
+#include <signal.h>
+
+extern const char *const sys_siglist[];
+char *strsignal(int sig);
+```
