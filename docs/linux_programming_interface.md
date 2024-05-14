@@ -620,3 +620,17 @@ of signal   | instruction m         ||// |              |   Code of signal  |
 
 - When the kernel invokes a signal handler, it passes the number of the signal that caused the invocation as an integer argument to the handler.
 - If a signal handler catches only one type of signal, then this argument is of little use. We can, however establish the same handler to catch different types of signals and use this argument to determine which signal caused the handler to be invoked.
+
+### 20.5. Sending signals: `kill()`
+
+- One process can send a signal to another process using the `kill()` system call, which is the analog of the `kill` shell command.
+
+```C
+#include <signals.h>
+
+int kill(pid_t pid, int sig);
+```
+
+- NOTE:
+  - if `pid` equal 0, the signal is sent to every process in the same process group as the calling process, include calling process itself.
+  - If `pid` less than -1, the signal is sent to all of the processes in the process group whose ID equals the absolute value of `pid`.
