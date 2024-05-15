@@ -682,3 +682,88 @@ int killpg(pid_t pgrp, int sig);
 extern const char *const sys_siglist[];
 char *strsignal(int sig);
 ```
+
+## 29. Threads: Introduction
+
+### 29.1. Overview
+
+- Like processes, threads are a mechanism that permits an application to perform multiple tasks concurrently.
+- All of these threads are independently executing the same program, and they all share the same global memory, including the initialized data, uninitialized data, and heap segments.
+
+- On a multiprocessor system, multiple threads can execute in parallel. If one thread is blocked on I/O, other threads are still eligible to execute.
+
+```text
+Virtual memory address
+    (hexadecimal)___________________
+    0xC0000000  |__argv,_environ____|
+                |  Stack for main   |
+                |       thread      |
+                |- - - - - - - - - -|
+                |        ||         |
+                |        \/         |
+                |                   |
+                |                   |
+                |-------------------|
+                | Stack for thread 3|
+                |-------------------|
+                | Stack for thread 2|
+                |-------------------|
+                | Stack for thread 1|
+                |-------------------|
+                | Shared libraries, |
+    0x40000000  |   shared memory   |
+                |-------------------|
+ UNMAPPED_BASE  |                   |
+                |                   |
+                |        /\         |
+                |        ||         |
+                |- - - - - - - - - -|
+                |       Heap        |
+                |___________________|
+                |Uninitialized data |
+                |______(bss)________|
+                |  Initialized data |
+                |___________________|
+                |                   |<--- thread 3 executing here.
+                |                   |<--- main thread executing here.
+                |   Text (program   |<--- thread 1 executing here.
+                |     code)         |<--- thread 2 executing here.
+    0x80480000  |___________________|
+    0x00000000  |___________________|
+```
+
+- Threads offer advantages over processes in certain applications. Consider the traditional UNIX approach to achieving concurrency by creating multiple processes. An example of this is a network server design in which a parent process accepts incoming connections from clients, and then use `fork()` to create a separate child process to handle communication with each client. Such a design makes it possible to serve multiple clients simultaneously. While this approach works well for many scenarios, it does have the following limitations in some applications:
+  - 1. It is difficult to share information bw processes. Since the parent and child don't share memory (other than the read-only text segment), we must use some form of IPC in order to exchange information bw processes.
+  - 2. Process creation with `fork()` is relatively expensive. Even with the `copy-on-write` technique, the need to duplicate various process attributes such as page tables and file descriptor tables means that a `fork()` call is still time-consuming.
+
+- Threads address both of these problems:
+  - 1. Sharing information bw threads is easy and fast. It is just a matter of copying data into shared variables.
+  - 2. Thread creation is faster than process creation. Ten times faster or better. Thread creation is faster because many of the attributes that must be duplicated in a child created by `fork()` are instead shared bw threads. In particular, copy-on-write duplication of pages of memory is not required, nor is duplication of page tables.
+
+- Besides global memory, threads also shared a number of other attributes (i.e. these attributes are global to a process, rather than specific to a thread). These attributes include the following:
+  - 1. Process ID and parent process ID;
+  - 2. Process group ID and and session ID;
+  - 3. Controlling terminal;
+  - 4. Process credentials (user and group IDs);
+  - 5. Open file descriptors;
+  - 6. Record locks created using `fcntl()`;
+  - 7. signal dispositions;
+  - 8. file system-related information: umask, current work directory, and root directory;
+  - 9. Interval timers and POSIX timers.
+  - 10. System V semaphore undo (semadj) values;
+  - 11. Resource limits;
+  - 12. CPU time consumed;
+  - 13. Resources consumed;
+  - 14. Nice value.
+
+- Among the attributes that are distinct for each thread are the following:
+  - 1. Thread ID;
+  - 2. Signal mask;
+  - 3. Thread-specific data;
+  - 4. Alternate signal stack;
+  - 5. The `errno` variable;
+  - 6. Floating-point environment;
+  - 7. real time scheduling policy and priority;
+  - 8. CPU affinity;
+  - 9. Capabilities;
+  - 10. Stack (local variable and function call linkage information);
