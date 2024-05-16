@@ -1,3 +1,11 @@
-all:
-	gcc signals.c -o signals.o
-	gcc kill.c -o kill.o
+CC=gcc
+OBJ=signals.o kill.o threads.o
+FLAGS=-pthread
+
+all: $(OBJ)
+
+%.o: %.c
+	$(CC) $(FLAGS) $(INCLUDES) $< -o $@
+
+clean:
+	rm *.o
