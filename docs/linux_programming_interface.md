@@ -917,3 +917,27 @@ pthread_detach(pthread_self());
 
 - Once a thread has been detached, it is no longer possible to use the `pthread_join()` to obtain its return status, and the thread can't be made joinable again.
 - Detaching a thread doesn't make it immune to a call to `exit()` in another thread or a `return` in the main thread. In such event, all threads in the process are immediately terminated, regardless of whether they are joinable or detached.
+
+### 29.8. Thread attributes
+
+- The attributes include information such as the location and the size of the thread's stack, the thread's scheduling policy and priority, and wether the thread is joinable or detached.
+
+- For example, we can set detach attribute for thread at creation time, that means we don't need to call `pthread_detach()` after the creation.
+
+```C
+pthread_t thr;
+pthread_attr_t attr;
+int s;
+s = pthread_attr_init(&attr); /* Assigns default values */
+if (s != 0)
+errExitEN(s, "pthread_attr_init");
+s = pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
+if (s != 0)
+  errExitEN(s, "pthread_attr_setdetachstate");
+s = pthread_create(&thr, &attr, threadFunc, (void *) 1);
+if (s != 0)
+  errExitEN(s, "pthread_create");
+s = pthread_attr_destroy(&attr); /* No longer needed */
+if (s != 0)
+  errExitEN(s, "pthread_attr_destroy");
+```
