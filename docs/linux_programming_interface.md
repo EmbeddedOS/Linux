@@ -882,3 +882,20 @@ printf("Thread ID = %ld\n", (long) thr); /* WRONG! */
 ```
 
 - In the Linux threading implementations, thread IDs are unique across processes.
+
+### 29.6. Joining with a Terminated Thread
+
+- The `pthread_join()` function waits for the thread identified by `thread` to terminate. (If the thread has already terminated, `pthread_join()` returns immediately). This operation is termed **JOINING**.
+
+```C
+#include <pthread.h>
+int pthread_join(pthread_t thread, void **retval);
+```
+
+- A process can join itself.
+- Joining a joined thread may lead to unpredictable behaviour. Because maybe thread ID is reuse by a new one.
+- If thread is not detacted, then we **MUST** join with it using pthread_join(). If we fail to do this, then, when the thread terminates, it produces the thread equivalent of a zombie process. Aside from wasting system resources, if enough thread zombies accumulate, we won't be able to create additional threads.
+
+- The task that `pthread_join()` performs for threads is similar to that performed by `waitpid()` for processes. However, there are some notable differences:
+  - 1. Threads are peers. Any thread in a process can use `pthread_join()` to join with any other thread in the process.
+  - 2. There is noway of saying *join with any thread* (for processes, we can do this using the call `waitpid(-1, ...)`); nor is there a way to do a nonblocking join.

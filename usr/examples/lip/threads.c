@@ -13,13 +13,14 @@ void exit_current_thread(void *result)
 void* start_routine(void *arg)
 {
     printf("start_routine tid: %ld\n", pthread_self());
-    exit_current_thread(NULL);
+    exit_current_thread("I'm quit.");
 }
 
 int main()
 {
     pthread_t thread = {0};
     pthread_attr_t attr = {0};
+    void *thread_return = NULL;
     int result = 0;
 
     result = pthread_create(&thread, &attr, start_routine, NULL);
@@ -29,5 +30,6 @@ int main()
         exit(EXIT_FAILURE);
     }
 
-    usleep(100);
+    pthread_join(thread, &thread_return);
+    printf("Thread return: %s\n", (char *)thread_return);
 }
