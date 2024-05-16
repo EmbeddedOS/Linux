@@ -858,3 +858,27 @@ void pthread_exit(void *ret);
 - Calling `pthread_exit()` is equivalent to perform a `return` in the thread's start function, with the different that `pthread_exit()` **can be called from any function** that has been called by the thread's start function.
 
 - This function do not work with main thread.
+
+### 29.5. Thread IDs
+
+- Each thread within a process is uniquely identified by a thread ID. And thread can obtain its own ID using `pthread_self()`.
+
+```C
+#include <pthread.h>
+pthread_t pthread_self(void);
+```
+
+- Thread IDs are useful within applications for the following reasons:
+  - 1. Various Pthreads function use thread IDs to identify the thread on which they are to act. Examples of such functions include `pthread_join()`, `pthread_detach()`, `pthread_cancel()`, `pthread_kill()`.
+  - 2. In some applications, it can be useful to tag dynamic data structures with the ID of a particular thread. This can serve to identify the thread that created or **owns** a data structure, or can be used by one thread to identify a specific thread that should subsequently do something with the data structure.
+
+- The `pthread_equal()` function allows us check whether two thread IDs are the same.
+
+- NOTE: SUSv3 doesn't require `pthread_t` to be implemented as a scalar type; it could be a structure. Therefore, we **CAN NOT** portably use code such as following to display a thread ID:
+
+```C
+pthread_t thr;
+printf("Thread ID = %ld\n", (long) thr); /* WRONG! */
+```
+
+- In the Linux threading implementations, thread IDs are unique across processes.
