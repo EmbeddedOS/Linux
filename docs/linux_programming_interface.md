@@ -839,3 +839,22 @@ int pthread_create(pthread_t *thread,
   - If `attr` is NULL, then the thread is created with various default attributes.
 
 - After a call to `pthread_create()`, a program has no guarantees about which thread will next be scheduled to use the CPU (on a multiprocessor system, both threads may simultaneously execute on different CPUs).
+
+### 29.4. Thread Termination
+
+- The execution of a thread terminates in one of the following ways:
+  - 1. The thread's start function performs a `return` specifying a return value for the thread.
+  - 2. The thread calls `pthread_exit()`.
+  - 3. The thread is canceled using `pthread_cancel()`.
+  - 4. Any of the threads calls `exit()`, ot the main thread perform a`return` (in `main()`), which causes all threads in process to terminate immediately.
+
+- `pthread_exit()` function terminates the calling thread, and specifies a return that can be obtained in another thread by calling `pthread_join()`.
+
+```C
+#include <pthread.h>
+void pthread_exit(void *ret);
+```
+
+- Calling `pthread_exit()` is equivalent to perform a `return` in the thread's start function, with the different that `pthread_exit()` **can be called from any function** that has been called by the thread's start function.
+
+- This function do not work with main thread.
