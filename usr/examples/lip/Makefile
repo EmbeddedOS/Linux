@@ -1,5 +1,9 @@
 CC=gcc
-OBJ=signals/signals.o signals/kill.o threads/joining.o
+OBJ=signals/signals.o \
+	signals/kill.o \
+	threads/joining.o \
+	threads/detach.o
+
 FLAGS=-pthread
 
 all: $(OBJ)

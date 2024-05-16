@@ -899,3 +899,21 @@ int pthread_join(pthread_t thread, void **retval);
 - The task that `pthread_join()` performs for threads is similar to that performed by `waitpid()` for processes. However, there are some notable differences:
   - 1. Threads are peers. Any thread in a process can use `pthread_join()` to join with any other thread in the process.
   - 2. There is noway of saying *join with any thread* (for processes, we can do this using the call `waitpid(-1, ...)`); nor is there a way to do a nonblocking join.
+
+### 29.7. Detaching a Thread
+
+- By default, a thread is **joinable**, meaning that when it terminates, another thread can obtain its return status using `pthread_join()`. Sometimes, we don't care about the thread's return status; we simply want the system to automatically clean up and remove the thread when it terminates. In this case, we can mark the thread as **detached**:
+
+```C
+#include <pthread.h>
+int pthread_detach(pthread_t thread);
+```
+
+- NOTE: A thread can detach itself using:
+
+```C
+pthread_detach(pthread_self());
+```
+
+- Once a thread has been detached, it is no longer possible to use the `pthread_join()` to obtain its return status, and the thread can't be made joinable again.
+- Detaching a thread doesn't make it immune to a call to `exit()` in another thread or a `return` in the main thread. In such event, all threads in the process are immediately terminated, regardless of whether they are joinable or detached.
