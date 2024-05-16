@@ -813,3 +813,29 @@ if (s != 0)
 - On Linux, programs that use the Pthreads API must be compiled with the `cc -pthread` option. The effects of this option include the following:
   - 1. The `_REENTRANT` pre-processor macro is defined. This causes the declarations of a few reentrant functions to be exposed.
   - 2. The program is linked with the `libthread` library (the equivalent `-lpthread`).
+
+### 29.3. Thread Creation
+
+- When a program is started, the resulting process consists of a single thread, called the `initial` or `main` thread.
+
+- The `pthread_create()` function creates a new thread:
+
+```C
+#include <pthread.h>
+
+int pthread_create(pthread_t *thread,
+                   const pthread_attr_t *attr,
+                   void* (start_routine)(void *), void *arg);
+```
+
+- The new thread commences execution by calling the function identified by `start_routine` with the argument `arg`. The thread that calls `pthread_create()` continues execution with the next statement that follows the call.
+
+- The `arg` argument is declared as `void *`, meaning that we can pass a pointer to any type of object to the `start_routine` function. Typically, `arg` points to a global or heap variable, but it can also be specified as `NULL`.
+- If we need to pass multiple argument to `start_routine`, then arg can be specified as a pointer to a structure containing the arguments as separate fields.
+
+- NOTE: The return value of `start_routine` is likewise of type `void *`, and it can be employed in the same way as the `arg` argument. We can get this use `pthread_join()`.
+
+- NOTE: The `attr` argument is a pointer to a `pthread_attr_t` object that specifies various attributes for the new thread.
+  - If `attr` is NULL, then the thread is created with various default attributes.
+
+- After a call to `pthread_create()`, a program has no guarantees about which thread will next be scheduled to use the CPU (on a multiprocessor system, both threads may simultaneously execute on different CPUs).
