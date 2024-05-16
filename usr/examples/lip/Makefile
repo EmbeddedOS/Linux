@@ -2,7 +2,8 @@ CC=gcc
 OBJ=signals/signals.o \
 	signals/kill.o \
 	threads/joining.o \
-	threads/detach.o
+	threads/detach.o \
+	threads/detached_attr.o
 
 FLAGS=-pthread
 
