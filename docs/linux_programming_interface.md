@@ -767,3 +767,49 @@ Virtual memory address
   - 8. CPU affinity;
   - 9. Capabilities;
   - 10. Stack (local variable and function call linkage information);
+
+### 29.2. Background Details of the Pthreads API
+
+#### 29.2.1. Pthreads data types
+
+- The Pthreads API defines a number of data types, some of which:
+
+| Data type           | Description                   |
+|---------------------|-------------------------------|
+| pthread_t           | Thread identifier             |
+| pthread_mutex_t     | Mutex                         |
+| pthread_mutexattr_t | Mutex attributes              |
+| pthread_cond_t      | Condition variable            |
+| pthread_condattr_t  | Condition variable attributes |
+| pthread_key_t       | Key for thread-specific data  |
+| pthread_once_t      | One-time init control context |
+| pthread_attr_t      | Thread attributes             |
+
+#### 29.2.2. Threads and `errno`
+
+- In the traditional UNIX API, `errno` is a global integer variable. However,this doesn't suffice for threaded programs. If a thread made a function call that returned an error in a global `errno` variable, then this would confuse other threads that might also be making function calls and checking `errno`. In other words, race conditions would result. **Therefore, in threaded programs, each thread has its own `errno`**.
+
+- On Linux, a thread-specific `errno` is achieved in a similar manner to most other UNIX implementations: `errno` is defined as a macro that expands into a function call returning a modifiable `lvalue` that is distinct for each thread.
+
+#### 29.2.3. Return value from Pthreads functions
+
+- The traditional method of returning status from system calls and some library functions is return to `0` on success and `-1` on error, with `errno` being set to indicate the error.
+
+- The functions in the Pthreads API do things differently. All Pthreads functions return 0 on success or a **positive value on failure**. The failure value is one of the same values that can be placed in `errno` by traditional UNIX system calls.
+
+- Because each reference to `errno` in a threaded program carries the overhead of function call, our programs don't directly assign the return value of Pthreads function to `errno`. Instead, we use an intermediate variable and employ our `errExitEN()` diagnostic, like so:
+
+```C
+pthread *thread;
+s = pthread_create(&thread, NULL, func, &arg);
+if (s != 0)
+{
+  errExitEN(s, "pthread_create");
+}
+```
+
+#### 29.2.4. Compiling Pthreads programs
+
+- On Linux, programs that use the Pthreads API must be compiled with the `cc -pthread` option. The effects of this option include the following:
+  - 1. The `_REENTRANT` pre-processor macro is defined. This causes the declarations of a few reentrant functions to be exposed.
+  - 2. The program is linked with the `libthread` library (the equivalent `-lpthread`).
