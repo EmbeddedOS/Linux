@@ -941,3 +941,27 @@ s = pthread_attr_destroy(&attr); /* No longer needed */
 if (s != 0)
   errExitEN(s, "pthread_attr_destroy");
 ```
+
+### 29.9. Thread Versus Process
+
+- Advantages of a multithreaded approach:
+  - 1. Share data bw threads is easy. By contrast, sharing data bw processes requires more work.
+  - 2. Thread creation is faster than process creatrion; context-switch time may be lower for threads than for processes.
+
+- Using threads can have some disadvantages compared to using processes:
+  - 1. When programming with threads, we need to ensure that the functions we call are thread-safe or called a thread-safe manner. Multiprocess applications don't need to be concerned with this.
+  - 2. A bug in one thread can damage all of the threads in the process, since they share the same address space and other attributes. By constrast, processes are more isolated from one another.
+  - 3. Each thread is competing for use of the finite virtual address space of the host process. In particular, each thread's stack and thread-specific data (thread-local storage) consumes a part of the process virtual address space, which is consequently unavailable for other threads.
+    - Although the available virtual address space is large, this factor may be a significant limitation for processes employing large numbers of threads or threads that require large amount of memory.
+    - By contrast, separate processes can each employ the full range of available virtual memory (subject to the limitations of RAM and swap space).
+
+- Some other points that influence our choice of threads versus processes:
+  - 1. Dealing with signals in a multithreaded application requires careful design.
+  - 2. In a multithreaded application, all threads must be running the same program.
+  - 3. Aside from data, threads also share certain other informaion.
+
+### 29.10. Summary
+
+- 1. Multiple threads are concurrently executing the same program.
+- 2. Threads share the same global and heap variables, but each thread has a private stack for local variables.
+- ...
