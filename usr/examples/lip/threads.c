@@ -3,9 +3,17 @@
 #include <unistd.h>
 #include <stdlib.h>
 
+
+void exit_current_thread(void *result)
+{
+    /* Cleanup current thread here. */
+    pthread_exit(result);
+}
+
 void* start_routine(void *arg)
 {
-    printf("start_routine\n");
+    printf("start_routine tid: %ld\n", pthread_self());
+    exit_current_thread(NULL);
 }
 
 int main()
