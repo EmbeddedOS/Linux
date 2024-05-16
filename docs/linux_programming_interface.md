@@ -965,3 +965,30 @@ if (s != 0)
 - 1. Multiple threads are concurrently executing the same program.
 - 2. Threads share the same global and heap variables, but each thread has a private stack for local variables.
 - ...
+
+## 30. Threads: Thread Synchronization
+
+- we have two basic tools that threads can use to synchronize their actions: mutexes and condition variables.
+  - Mutexes allow threads to synchronize their use of a shared resource, so that, for example, one thread doesn't try to access a shared variable at the same time as another thread is modifying it.
+  - Condition variables perform a complementary task: They allow threads to inform each other that a shared variable (or other shared resource) has changed state.
+
+### 31. Protecting Accesses to shared variables: Mutexes
+
+- One of the principle advantages of threads is that they can share information via global variables. However, this easy sharing comes at a cost: we must take care that multiple threads do not attemp to modify the same variables at the same time, or that one thread doesn't try to read the value of a variable while another thread is modifying it.
+
+- The term **critical section** is used to refer to a section of code that accesses a shared resource and whose execution should be atomic; that is, its execution should not be interrupted by another thread that simultaneously accesses the same resource.
+
+- To avoid the problems that can occur when threads try to update a shared variable, we must use a **mutex** (short for mutual execlusion) to ensure that only one thread at a time can access the variable.
+
+- A mutex has two states: **locked** and **unlocked**. At any moment, at most one thread may hold the lock on a mutex. Attempting to lock a mutex that is already locked either blocks or fails with an error.
+
+- When a thread locks a mutex, it becomes the **OWNER** of that mutex. Only the mutex owner can unlock the mutex.
+
+- In general, we employ a different mutex for each shared resource (which may consist of multiple related variables), and each thread employs the following protocol for accessing a resource:
+  - 1. Lock the mutex for the shared resource.
+  - 2. Access the resource.
+  - 3. Unlock the mutex.
+
+- If multiple threaads try to execute this block code, the fact that only one thread can hold the mutex (the others remain blocked) means that only one thread at a time can enter the block.
+
+#### 31.1. Statically Allocated Mutexes
