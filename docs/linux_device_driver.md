@@ -576,3 +576,29 @@ int register_chrdev(unsigned int major, const char *name, struct file_operations
 ```
 
 - A call to `register_chardev()` registers minor numbers 0-255 for the given `major`, and set up a default `cdev` structure for each. Drivers using this interface must be prepared to handle `open` calls on all 256 minor numbers (whether they correspond to real devices or not).
+
+## 17. Network drivers
+
+- Network interfaces are the third standard class of Linux devices.
+- The role of a network interface within the system is similar to that of a mounted block device. A block device regiters its disks and methods with the kernel, and then `transmits` and `receives` blocks on request, by means of its `request` function. Similarly, a network interface must register itself within specific kernel data structures in order to be invoked when packets are exchanged with the outside world.
+
+- There are a few important differences between mounted disks and packet-delivery interfaces.
+  - 1. To begin with, a disk exists as a special file in the `/dev` directory, whereas a network interface has no such entry point.
+  - 2. The normal file operations (read, write, and so on) do not make sense when applied to network interfaces, so it is **NOT POSSIBLE** to apply the UNIX **everything is a file** approach to them.
+    - Thus, network interfaces exist in their own namespace and export a different set of operation.
+    - Although you may object that applications use the `read` and `write` system calls when using sockets, those calls act on a software object that is distinct from the interface. Several hundred sockets can be multiplexed on the same physical interface.
+  - 3. The most important difference is that block drivers operate only in response to requests from the kernel, whereas network drivers receive packets **ASYNCHRONOUSLY** from outside.
+
+- The network subsystem of the Linux Kernel is designed to be **completely protocol-independent**. This applies for both networking protocols (IP, etc.) and hardware protocols (Ethernet, etc.).
+  - Interaction between a network driver and the kernel properly **deals with one network packet at a time**; this allows **protocol issues to be hidden neatly from the driver** and **the physical transmission to be hidden from the protocol**.
+
+- NOTE: The term `octet` means a group of eight bits, which is generally the smallest unit understood by networking devices and protocols. The term `byte` is almost never encountered in this context.
+- NOTE: The term `header` is a set of bytes prepended to a packet as it is passed through  the various layers of the networking subsystem.
+
+- When a application sends a block of data through a TCP socket:
+  - 1. The network subsystem breaks that data up into packets and puts a TCP header, describing where each packets fits within the stream, at the beginning.
+  - 2. The lower levels then put an IP headers, used to route the packet to its destination, in front of the TCP heaer.
+  - 3. If the packets moves over an Ethernet-like medium, an Ethernet header, interpreted by the hardware, goes in front of the rest.
+- Network drivers need **not concern themselves with higher-level headers**, but they often **must be involved in the creation of the hardware-level header**.
+
+### 17. How snull is designed
