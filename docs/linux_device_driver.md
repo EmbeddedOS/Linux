@@ -764,9 +764,62 @@ void snull_cleanup(void)
 
 - Optional:
 - 27. `int weight;`
-- 28. `int (*poll)(struct net_device dev; int quota);`
+- 28. `int (*poll)(struct net_device *dev, int quota);`
   - Operate the interface in a polled mode, with interrupts disabled.
 - 29. `int (*do_ioctl)(struct net_device dev, struct ifreq ifr, int cmd);`
   - performs interface-specific `ioctl` command.
 - 30. `int (*set_mac_address)(struct net_device *dev, void *addr);`
   - Can be implemented if the interface supports the ability to change its hardware address.
+
+### 17.4. Opening and Closing
+
+- The kernel opens and closes an interface in response to the `ifconfig` command.
+- When `ifconfig` is used to assign an address to the interface, it performs two tasks. First, it assigns the address by means of `ioctl(SIOCSIFADDR)`(Socket I/O Control Set Interface Address). Then it sets the `iFF_UP` bit in `dev->flag` by means of `ioctl(SIOCSIFFLAGS)` (Socket I/O Control Set Interface Flags) to turn the interface on.
+
+- `open` requests any system resources it needs and tells the interface to come up; `stop` shuts down the interface and release system resources. Some drivers must perform some addiontional steps at `open` time.
+
+- First, the hardware (MAC) address needs to be copied from the hardware device to `dev->dev_addr` before the interface can communicate with the outside world.
+  - The hardware address can then be copied to the device at open time.
+
+- The `open` method should also start the interface's transmit queue (allowing accepting packets for transmission) once it is ready to start sending data. The kernel provides a function to start the queue:
+
+```C
+void netif_start_queue(struct net_device *dev);
+```
+
+- So our `open()` look like:
+
+```C
+int snull_open(struct net_device *dev)
+{
+  /* request_region( ), request_irq( ), .... (like fops->open) */
+
+  /*
+  * Assign the hardware address of the board: use "\0SNULx", where
+  * x is 0 or 1. The first byte is '\0' to avoid being a multicast
+  * address (the first byte of multicast addrs is odd).
+  */
+  memcpy(dev->dev_addr, "\0SNUL0", ETH_ALEN);
+  
+  if (dev == snull_devs[1])
+    dev->dev_addr[ETH_ALEN-1]++; /* \0SNUL1 */
+
+  netif_start_queue(dev);
+
+  return 0;
+}
+
+```
+
+- And the close:
+
+```C
+int snull_release(struct net_device *dev)
+{
+  /* release ports, irq and such -- like fops->close */
+
+  netif_stop_queue(dev); /* can't transmit any more */
+  return 0;
+  }
+
+```
