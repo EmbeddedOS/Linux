@@ -601,4 +601,172 @@ int register_chrdev(unsigned int major, const char *name, struct file_operations
   - 3. If the packets moves over an Ethernet-like medium, an Ethernet header, interpreted by the hardware, goes in front of the rest.
 - Network drivers need **not concern themselves with higher-level headers**, but they often **must be involved in the creation of the hardware-level header**.
 
-### 17. How snull is designed
+### 17.1. How `snull` is designed
+
+- `snull` network interface.
+- The sample interfaces should remain indpendent of real hardware.
+- This constraint led to something that resembles the loopback interface. **`snull` is not a loopback interface**; however, it simulates conversations with **real remote hosts** in order to better demonstrate the task of writing a network driver.
+- The Linux loopback driver is actually quite simple; it can be found in `drivers/net/loopback.c`
+
+- Another feature of `snull` is that it supports only IP traffic. This is a consequence of the internal workings of the interface--`snull` has to look inside and interpret the packets to properly emulate a pair of hardware interfaces.
+- **Real interfaces don't depend on the protocol being transmitted**.
+
+#### 17.1.1. Assigning IP numbers
+
+- The `snull` module creates two interfaces. These interfaces are different from a simple loopback, in that whatever you transmit through one of the interfaces loops back to the other one, not to itself. It looks like you have two external links, but actually your computer is replying to itself.
+
+### 17.1.2. The physical Transport of packets
+
+- Snull emulates Ethernet because:
+  - 1. the vast majority of existing networks, **at least the segments that a workstation connects to** are based on Ethernet technology, be it 10base-T, 100base-T or Gigabit.
+  - 2. The kernel offers some generalized support for Ethernet devices, and there's no reason not use it.
+  - 3. The advantage of being an Ethernet device is so strong that even the `plip` interface (the interface that uses the printer ports) declares itself as an Ethernet device.
+  - 4. The last advantage of using the Ethernet setup for snull is that you can run `tcpdump` on the interface to see the packets go by.
+
+### 17.2. Connecting to the Kernel
+
+- We start looking at the structure of network drivers by dissecting the the `snull` source. Keeping the source code for several drivers handy might help you follow the discussion and to see how real-world Linux drivers operate.
+
+- As a place to start, we suggest `loopback.c` -> `plip.c` -> `e100.c` in order of increasing complexity.
+  - All these files live in `drivers/net`, within the kernel source tree.
+
+#### 17.2.1. Device Registration
+
+- When a driver module is loaded into a running kernel, it requests resources and offers facilities;
+- The driver should probe for its device and its hardware location (I/O ports and IRQ line) -- but not register them.
+- The way a network driver is registered by its module initialization function is different from char and block drivers. Since there is no equivalent of major and minor numers for network interfaces, a network driver does not request such a number. **Instead, the driver inserts a data structure for each newly detected interface into a global list of network devices**.
+
+- Each interface is describe by a `struct net_device` item, which is defined in `linux/netdevice.h`.
+- The `net_device` structure, like many other kernel structures, contains a `kobject` and is, therefore, reference-counted and exported via `sysfs`. As with other such structures, it must be allocated dynamically. The kernel function provided to perform this allocation is `alloc_netdev`, which has the following prototype:
+
+```C
+struct net_device *alloc_netdev(int sizeof_priv,
+                                const char *name,
+                                void (*setup)(struct net_device *));
+```
+
+- The `sizeof_priv` private data will be allocated along with the `net_device` structure.
+- The `name` can have a `printf-style %d`. The kernel replaces the `%d` with the next available interface number.
+- Finally, `setup` is a pointer to an initialization function that is called to set up the rest of the `net_device` structure.
+
+- The networking subsytem provides a number of helper functions wrapped around `alloc_netdev()` for various types of interfaces. The most common is `alloc_etherdev()`, which is defined in `<linux/etherdev.h>`:
+
+    ```C
+    struct net_device *alloc_etherdev(int sizeof_priv);
+    ```
+
+  - This function allocates a network device using `eth%d` for the name argument. It provides its own initialization function (`ether_setup()`) that sets several `net_device` fields with appropriate values for Ethernet devices. The driver should simply do its required initialization directly after a successful allocation.
+- We have similar wrappers like `alloc_fcdev()`, `alloc_fddidev()`, `alloc_trdev()`.
+
+- Once the `net_device` structure has been initialized, completing the process is just a matter of passing the structure to `register_netdev`. For example:
+
+```C
+struct net_device* dev = alloc_netdev(0, "lava_loopback", &setup);
+
+/* Configure more for your driver here. */
+
+/* Register it to the kernel, add to the netdevice list. */
+register_netdev(dev);
+```
+
+#### 17.2.2. Initializing Each Device
+
+- We have looked at the allocation and registration of `net_device` structures, but we passed over the intermediate step of completely initializing that structure.
+- Note that `struct net_device` is always put together at runtime; it cannot be set up at compile time in the same manner as a `file_operations` or `block_device_operations` structure.
+- This initialization must be complete before calling `register_netdev()`. The `net_device` structure is large and complicated; fortunately, the kernel takes care of some Ethernet-wide defaults through the `ether_setup()` function.
+
+#### 17.2.3. Module unloading
+
+- Nothing special happens when the module is unloaded. The module cleanup function simply unregisters the interfaces, performs whatever internal cleanup is required, and releases the `net_device` structure back to the system:
+
+```C
+void snull_cleanup(void)
+{
+  int i;
+  for (i = 0; i < 2; i++) {
+    if (snull_devs[i]) {
+      unregister_netdev(snull_devs[i]);
+      snull_teardown_pool(snull_devs[i]);
+      free_netdev(snull_devs[i]);
+    }
+  }
+  return;
+}
+```
+
+### 17.3. The `net_device` Structure in Detail
+
+- The `net_device` structure is at the very core of the network driver layer and deserves a complete description.
+
+#### 17.3.1. Global information
+
+- 1. `char name[IFNAMESIZ];`: The name of the device.
+- 2. `unsigned long state;`: Device State. This field includes several flags. Drivers do not normally manipulate these flags directly.
+- 3. `struct net_device *next;`: Pointer to the next device in the global linked list. This field shouldn't be touched by the driver.
+- 4. `int (*init)(struct net_device *dev);`: An initialization function. If this pointer is set, the function is called by `register_netdev()` to complete the initialization of the `net_device` structure.
+
+#### 17.3.2. Hardware information
+
+- These fields contain low-level hardware information fo relatively simple devices. Most modern drivers do make use of them.
+
+- 5. `unsigned long rmem_end;`
+- 6. `unsigned long rmem_start;`
+- 7. `unsigned long mem_end;`
+- 8. `unsigned long mem_start;`
+  - Device memory information. These fields hold the begining and ending addresses of the shared memory used by the device. If the device has different receive and transmit memories, the `mem` fields are used for transmit memory and the `rmem` are used for receive memory.
+- 9. `unsigned long base_addr;`
+  - The I/O base address of the network interface. Should be assigned during the device probe.
+  - `ifconfig` command can display or modify this config.
+- 10. `unsigned char irq;`: The assigned interrupt number.
+  - `ifconfig` can display this.
+- 11. `unsigned char if_port;`: The port in use on multiport.
+- 12. `unsigned char dma;`: The DMA channel allocated by the device.
+
+#### 17.3.3. Interface Information
+
+- Most of the information about the interface is correctly setup by the `ether_setup()` function. Ethernet cards can rely on this general-purpose function for most of these fields, but the `flags` and `dev_addr` fields are device specific and must be explicitly assigned at initialization time.
+
+- Some non-Ethernet interfaces can use helper functions similar to `ether_setup()`. `drivers/net/net_init.c` exports a number of such functions, including the following:
+  - `void ltalk_setup(struct net_device *dev);`: Sets up the fields for a LocalTalk device.
+  - `void fc_setup(struct net_device *dev)`: Initializes fields for fiber-channel devices
+  - Etc.
+
+- Most devices are covered by one of these classes. If yours is something radically new and different, however, you need to assign the following fields by hand:
+
+- 13. `unsigned short hard_header_len;`: The hardware header length, that is, the number of octets that lead the transmitted packet before the IP header, or other protocol information.
+- 14. `unsigned mtu;`: The maximum transfer unit (MTU). This field is used by the network layer to drive packet transmission. Ethernet has an MTU of 1500 octets (ETH_DATA_LEN).
+- 15. `unsigned long tx_queue_len;`: The maximum number of frames that can be queued on the device's transmission queue.
+- 16. `unsigned short type;`: The hardware type of the interface. ARP use this to determine what kind of hardware address the interface supports.
+- 17. `unsigned char addr_len;`
+- 18. `unsigned char broadcast[MAX_ADDR_LEN];`
+- 19. `unsigned char dev_addr[MAX_ADDR_LEN];`
+  - Hardware (MAC) address length and device hardware addresses. The Ethernet address length is six octets.
+- 20. `unsigned short flags;`
+- 21. `int features;`
+  - Interface flags:
+    - `IFF_UP`: read-only, kernel turns it on when the interface is active and ready to transfer packets.
+    - `IFF_BROADCAST`: The interface allows broadcasting.
+    - `IFF_LOOPBACK`: This flag should be set only in the loopback interface.
+
+#### 17.3.4. The device method
+
+- Each network device declares the function that act on it.
+- Device methods for a network interface can be divided into two groups: `fundamental` and `optional`.
+
+- `Fundamental` methods include those that are needed to be able to use the interface:
+
+- 22. `int (*open)(struct net_device *dev);`: Opens the interface. The interface is opened whenever `ifconfig` activates it. The `open` method should register any system resource it needs (I/O ports, IRQ, DMA, etc.) turn on the hardware, and perform any other setup your device requires.
+- 23. `int (*stop)(struct net_device *dev);`: Stops the interface. This should reverse operations that are performed by `open()`.
+- 24. `int (*hard_start_xmit)(struct sk_buff *skb, struct net_device *dev);`: Method that initiates the transmission of a packet. The full packet(protocol headers and all) is contained in a socket buffer (`sk_buff`) structure.
+- 25. `int (*hard_header)(struct sk_buff *skb, struct net_device *dev, unsigned short type, void *daddr, void *saddr, unsigned len);`: is called before `hard_start_xmit()` that builds the hardware header from the source and destination hardware addresses that were previously retrieved.
+- 26. `void (*tx_timeout)(struct net_device *dev);` Method called by the networking code when a packet transmission fails to complete within a reasonable period. It should handle the problem and resume packet transmission.
+- Etc.
+
+- Optional:
+- 27. `int weight;`
+- 28. `int (*poll)(struct net_device dev; int quota);`
+  - Operate the interface in a polled mode, with interrupts disabled.
+- 29. `int (*do_ioctl)(struct net_device dev, struct ifreq ifr, int cmd);`
+  - performs interface-specific `ioctl` command.
+- 30. `int (*set_mac_address)(struct net_device *dev, void *addr);`
+  - Can be implemented if the interface supports the ability to change its hardware address.
