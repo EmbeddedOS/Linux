@@ -1000,3 +1000,18 @@ if (s != 0)
 ```C
 pthread_mutex_t mtx = PTHREAD_MUTEX_INITIALIZER;
 ```
+
+#### 31.1. Locking and Unlocking a Mutex
+
+- After initialization, a mutex is unlocked. We use these function to lock and unlock:
+
+```C
+#include <pthread.h>
+
+int pthread_mutex_lock(pthread_mutex_t *mutex);
+int pthread_mutex_unlock(pthread_mutex_t *mutex);
+```
+
+- Calling `pthread_mutex_lock()` on a locked mutex in the same thread may lead to deadlock or return an error.
+- If call `pthread_mutex_unlock()` on a unlocked mutex that may lead to an error.
+- If call `pthread_mutex_unlock()` on a locked mutex but in another threads that lead to undefined behavior result.
