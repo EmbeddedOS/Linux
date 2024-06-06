@@ -1015,3 +1015,11 @@ int pthread_mutex_unlock(pthread_mutex_t *mutex);
 - Calling `pthread_mutex_lock()` on a locked mutex in the same thread may lead to deadlock or return an error.
 - If call `pthread_mutex_unlock()` on a unlocked mutex that may lead to an error.
 - If call `pthread_mutex_unlock()` on a locked mutex but in another threads that lead to undefined behavior result.
+
+#### 31.2. `pthread_mutex_trylock()` and `pthread_mutex_timelock()`
+
+- The Pthreads API provides two variants of the `pthread_mutex_lock()` function:
+  - 1. `pthread_mutex_trylock()`: Try to lock, if the mutex is locked, this function return the error `EBUSY` immediately.
+  - 2. `pthread_mutex_timedlock()`: called can specify an additional argument: `abstime` limit on the time that thread will sleep while waiting to acquire the mutex. It can return an error `ETIMEOUT`.
+
+- These functions are much less frequently used than `pthread_mutex_lock()` because in most well-designed applications, a thread should hold a mutex for only a short time.
