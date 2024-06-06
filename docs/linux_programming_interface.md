@@ -1035,3 +1035,23 @@ int pthread_mutex_unlock(pthread_mutex_t *mutex);
 - The simplest way to avoid such deadlocks is to define a mutex hierarchy. When threads can lock the same set of mutexes, they should always lock them in the same order.
 
 - Alternative strategy that is less frequenly used is **try, and then back off**.
+
+#### 31.6. Dynamically initializing a Mutex
+
+- Static initializer value `PTHREAD_MUTEX_INITIALIZER` can be used only for initializing a statically allocated mutex with default attributes. In other cases we must dynamically initialize the mutex using `pthread_mutex_init()`.
+
+```C
+#include <pthread.h>
+int pthread_mutex_init(pthread_mutex_t *mutex, const pthread_mutexattr_t *attr);
+```
+
+- Among the cases where we must use `pthread_mutex_init()` rather than a static initializer are the following:
+  - The mutex was dynamically allocated on the heap.
+  - The mutex is an automatically varialbe allocated on the stack.
+  - We want to initialize a statically allocated mutex with attributes other than defaults.
+
+- If use it, we need to destroy the mutex:
+
+```C
+int pthread_mutex_destroy(pthread_mutex_t *mutex);
+```
