@@ -1001,7 +1001,7 @@ if (s != 0)
 pthread_mutex_t mtx = PTHREAD_MUTEX_INITIALIZER;
 ```
 
-#### 31.1. Locking and Unlocking a Mutex
+#### 31.2. Locking and Unlocking a Mutex
 
 - After initialization, a mutex is unlocked. We use these function to lock and unlock:
 
@@ -1016,10 +1016,22 @@ int pthread_mutex_unlock(pthread_mutex_t *mutex);
 - If call `pthread_mutex_unlock()` on a unlocked mutex that may lead to an error.
 - If call `pthread_mutex_unlock()` on a locked mutex but in another threads that lead to undefined behavior result.
 
-#### 31.2. `pthread_mutex_trylock()` and `pthread_mutex_timelock()`
+#### 31.3. `pthread_mutex_trylock()` and `pthread_mutex_timelock()`
 
 - The Pthreads API provides two variants of the `pthread_mutex_lock()` function:
   - 1. `pthread_mutex_trylock()`: Try to lock, if the mutex is locked, this function return the error `EBUSY` immediately.
   - 2. `pthread_mutex_timedlock()`: called can specify an additional argument: `abstime` limit on the time that thread will sleep while waiting to acquire the mutex. It can return an error `ETIMEOUT`.
 
 - These functions are much less frequently used than `pthread_mutex_lock()` because in most well-designed applications, a thread should hold a mutex for only a short time.
+
+#### 31.4. performance of mutexes
+
+- What is the cost of using a mutex?
+
+#### 31.5. Mutex Deadlocks
+
+- Sometimes, a thread needs to simultaneously access two or more different shared resources, each of which is governed by a separate mutex. When more than one thread is locking the same set of mutexes, deadlock situations can arise.
+
+- The simplest way to avoid such deadlocks is to define a mutex hierarchy. When threads can lock the same set of mutexes, they should always lock them in the same order.
+
+- Alternative strategy that is less frequenly used is **try, and then back off**.
