@@ -972,7 +972,7 @@ if (s != 0)
   - Mutexes allow threads to synchronize their use of a shared resource, so that, for example, one thread doesn't try to access a shared variable at the same time as another thread is modifying it.
   - Condition variables perform a complementary task: They allow threads to inform each other that a shared variable (or other shared resource) has changed state.
 
-### 31. Protecting Accesses to shared variables: Mutexes
+### 31.1. Protecting Accesses to shared variables: Mutexes
 
 - One of the principle advantages of threads is that they can share information via global variables. However, this easy sharing comes at a cost: we must take care that multiple threads do not attemp to modify the same variables at the same time, or that one thread doesn't try to read the value of a variable while another thread is modifying it.
 
@@ -991,7 +991,7 @@ if (s != 0)
 
 - If multiple threaads try to execute this block code, the fact that only one thread can hold the mutex (the others remain blocked) means that only one thread at a time can enter the block.
 
-#### 31.1. Statically Allocated Mutexes
+#### 31.1.1. Statically Allocated Mutexes
 
 - A mutex can either be allocated as a static variable or be created dynamically at runtime (via `malloc()`).
 
@@ -1001,7 +1001,7 @@ if (s != 0)
 pthread_mutex_t mtx = PTHREAD_MUTEX_INITIALIZER;
 ```
 
-#### 31.2. Locking and Unlocking a Mutex
+#### 31.1.2. Locking and Unlocking a Mutex
 
 - After initialization, a mutex is unlocked. We use these function to lock and unlock:
 
@@ -1016,7 +1016,7 @@ int pthread_mutex_unlock(pthread_mutex_t *mutex);
 - If call `pthread_mutex_unlock()` on a unlocked mutex that may lead to an error.
 - If call `pthread_mutex_unlock()` on a locked mutex but in another threads that lead to undefined behavior result.
 
-#### 31.3. `pthread_mutex_trylock()` and `pthread_mutex_timelock()`
+#### 31.1.3. `pthread_mutex_trylock()` and `pthread_mutex_timelock()`
 
 - The Pthreads API provides two variants of the `pthread_mutex_lock()` function:
   - 1. `pthread_mutex_trylock()`: Try to lock, if the mutex is locked, this function return the error `EBUSY` immediately.
@@ -1024,11 +1024,11 @@ int pthread_mutex_unlock(pthread_mutex_t *mutex);
 
 - These functions are much less frequently used than `pthread_mutex_lock()` because in most well-designed applications, a thread should hold a mutex for only a short time.
 
-#### 31.4. performance of mutexes
+#### 31.1.4. performance of mutexes
 
 - What is the cost of using a mutex?
 
-#### 31.5. Mutex Deadlocks
+#### 31.1.5. Mutex Deadlocks
 
 - Sometimes, a thread needs to simultaneously access two or more different shared resources, each of which is governed by a separate mutex. When more than one thread is locking the same set of mutexes, deadlock situations can arise.
 
@@ -1036,7 +1036,7 @@ int pthread_mutex_unlock(pthread_mutex_t *mutex);
 
 - Alternative strategy that is less frequenly used is **try, and then back off**.
 
-#### 31.6. Dynamically initializing a Mutex
+#### 31.1.6. Dynamically initializing a Mutex
 
 - Static initializer value `PTHREAD_MUTEX_INITIALIZER` can be used only for initializing a statically allocated mutex with default attributes. In other cases we must dynamically initialize the mutex using `pthread_mutex_init()`.
 
@@ -1056,7 +1056,7 @@ int pthread_mutex_init(pthread_mutex_t *mutex, const pthread_mutexattr_t *attr);
 int pthread_mutex_destroy(pthread_mutex_t *mutex);
 ```
 
-#### 31.7. Mutex types
+#### 31.1.7. Mutex types
 
 - We made a number of statements about the behavior of mutex:
   - 1. A single thread may not lock the same mutex twice.
@@ -1067,3 +1067,38 @@ int pthread_mutex_destroy(pthread_mutex_t *mutex);
   - 1. PTHREAD_MUTEX_NORMAL: deadlock can happens in case 1. In case 2,3 may lead to undefined behavior.
   - 2. PTHREAD_MUTEX_ERRORCHECK: All above cases will return errors, but it's slower than a normal mutex.
   - 3. PTHREAD_MUTEX_RECURSIVE: It maintain a lock count, so in case 1, the thread call multiple times, it just increase the count, the mutex only release when the count back to 0.
+
+### 31.2. Signaling Changes of State: Condition Variables
+
+- A mutex prevents multiple threads from accessing a shared variable at the same time. A condition variable allows one thread to inform others threads about changes in the state of a shared variable (or other shared resource) and allows the other threads to wait (block) for such notification.
+
+- A condition variable is always used in conjunction with a mutex. The mutex provides mutual exclusion for accessing the shared variable, while the condition variable is used to signal changes in the variable's state.
+
+#### 31.2.1. Statically Allocated Condition Variables
+
+- Similar with mutex, you can do:
+
+```C
+pthread_cond_t cond = PTHREAD_COND_INITIALIZER;
+```
+
+#### 31.2.2. Signaling and Waiting on Condition Variables
+
+- The principle condition variable operations are **signal** and **wait**. The signal operation is a notification to one or more waiting threads that a shared variables's state has changed. The **wait** operation is the means of blocking until such a notification is received.
+
+- The `pthread_cond_signal()` and `pthread_cond_broadcast()` functions both signal the condition variable specified by `cond`, The `pthread_cond_wait()` function blocks a thread until the condition variable `cond` is signaled.
+
+```C
+#include <pthread.h>
+
+int pthread_cond_signal(pthread_cond_t *cond);
+int pthread_cond_broadcast(pthread_cond_t *cond);
+int pthread_cond_wait(pthread_cond_t *cond, pthread_mutex_t *mutex);
+```
+
+- Different bw `pthread_cond_signal()` and `pthread_conf_broadcast()` lies on what happens if multiple threads are blocked in `pthread_cond_wait()`. With `pthread_cond_signal()`, we are simply guaranteed that at least one of the blocked threads is woken up; with `pthread_cond_broadcast()`, all blocked threads are woken up.
+
+- The `pthread_cond_signal()` can be more eifficient than `pthread_cond_broadcast()`, because it **avoids** the following possibility:
+  - 1. All waiting threads are awoken.
+  - 2. One thread is scheduled first. This thread checks the state of the shared variable and sees that there is work to be done. The thread performs the required work, changes the state of the shared variable(s) to indicate that the work has been done, and unlocks the associated mutex.
+  - 3. Each of the remaining threads in turn locks the mutex and tests the state of the shared variable. However, because of the change made by the first thread, these threads see that there is no work to be done, and so unlock the mutex and go back to sleep.
