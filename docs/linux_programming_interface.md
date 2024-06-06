@@ -992,3 +992,11 @@ if (s != 0)
 - If multiple threaads try to execute this block code, the fact that only one thread can hold the mutex (the others remain blocked) means that only one thread at a time can enter the block.
 
 #### 31.1. Statically Allocated Mutexes
+
+- A mutex can either be allocated as a static variable or be created dynamically at runtime (via `malloc()`).
+
+- Allocate static. Before it can be used, a mutex must always be initialized.
+
+```C
+pthread_mutex_t mtx = PTHREAD_MUTEX_INITIALIZER;
+```
