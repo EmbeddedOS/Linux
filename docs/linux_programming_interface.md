@@ -1055,3 +1055,15 @@ int pthread_mutex_init(pthread_mutex_t *mutex, const pthread_mutexattr_t *attr);
 ```C
 int pthread_mutex_destroy(pthread_mutex_t *mutex);
 ```
+
+#### 31.7. Mutex types
+
+- We made a number of statements about the behavior of mutex:
+  - 1. A single thread may not lock the same mutex twice.
+  - 2. A thread may not unlock a mutex that it doesn't own.
+  - 3. A thread may not unlock a mutex that is not currently locked.
+
+- What happens in each of these cases depends on the `type` of mutex:
+  - 1. PTHREAD_MUTEX_NORMAL: deadlock can happens in case 1. In case 2,3 may lead to undefined behavior.
+  - 2. PTHREAD_MUTEX_ERRORCHECK: All above cases will return errors, but it's slower than a normal mutex.
+  - 3. PTHREAD_MUTEX_RECURSIVE: It maintain a lock count, so in case 1, the thread call multiple times, it just increase the count, the mutex only release when the count back to 0.
